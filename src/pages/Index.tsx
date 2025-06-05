@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, Users, Award } from "lucide-react";
@@ -11,10 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState('home');
-  const [isAdmin, setIsAdmin] = useState(false);
 
   // Check if user is logged in as admin
-  const { data: session } = useQuery({
+  const { data: session, refetch: refetchSession } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
       const { data } = await supabase.auth.getSession();
@@ -22,7 +21,7 @@ const Index = () => {
     },
   });
 
-  const { data: adminData } = useQuery({
+  const { data: adminData, refetch: refetchAdmin } = useQuery({
     queryKey: ['admin', session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) return null;
@@ -36,6 +35,27 @@ const Index = () => {
     enabled: !!session?.user?.id,
   });
 
+  // Set up auth state listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN') {
+          refetchSession();
+          refetchAdmin();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [refetchSession, refetchAdmin]);
+
+  const handleLoginSuccess = () => {
+    // Refresh session and admin data after successful login
+    refetchSession();
+    refetchAdmin();
+  };
+
+  // If user is authenticated and is an admin, show dashboard
   if (session && adminData) {
     return <AdminDashboard admin={adminData} />;
   }
@@ -45,7 +65,7 @@ const Index = () => {
   }
 
   if (currentView === 'admin') {
-    return <AdminLogin onBack={() => setCurrentView('home')} onLoginSuccess={() => setIsAdmin(true)} />;
+    return <AdminLogin onBack={() => setCurrentView('home')} onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (

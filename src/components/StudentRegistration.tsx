@@ -14,6 +14,8 @@ interface StudentRegistrationProps {
   onBack: () => void;
 }
 
+type SkillType = 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management';
+
 const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
   const [formData, setFormData] = useState({
     studentName: '',
@@ -22,14 +24,14 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
     departmentId: '',
     matricNumber: '',
     levelOfStudy: '',
-    skillApplied: '' as 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management' | '',
+    skillApplied: '' as SkillType | '',
   });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   // Fetch departments
-  const { data: departments, isLoading: departmentsLoading } = useQuery({
+  const { data: departments, isLoading: isLoadingDepartments } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -42,23 +44,18 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
     },
   });
 
-  const skillOptions = [
-    { value: 'digital_marketing', label: 'Digital Marketing' },
-    { value: 'business_planning', label: 'Business Planning' },
-    { value: 'financial_management', label: 'Financial Management' },
-    { value: 'e_commerce', label: 'E-Commerce' },
-    { value: 'product_development', label: 'Product Development' },
-    { value: 'sales_techniques', label: 'Sales Techniques' },
-    { value: 'leadership_skills', label: 'Leadership Skills' },
-    { value: 'project_management', label: 'Project Management' }
-  ];
-
-  const levelOptions = [
-    '100 Level', '200 Level', '300 Level', '400 Level', '500 Level', 'Postgraduate'
-  ];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.skillApplied) {
+      toast({
+        title: "Error",
+        description: "Please select a skill to apply for",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -87,7 +84,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
           department_id: formData.departmentId,
           matric_number: formData.matricNumber,
           level_of_study: formData.levelOfStudy,
-          skill_applied: formData.skillApplied,
+          skill_applied: formData.skillApplied as SkillType,
           esp_receipt_url: receiptUrl,
         });
 
@@ -95,7 +92,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
 
       toast({
         title: "Application Submitted",
-        description: "Your application has been submitted successfully. You will be notified of the status via email.",
+        description: "Your application has been submitted successfully and is pending review.",
       });
 
       // Reset form
@@ -121,6 +118,26 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
     }
   };
 
+  const skillOptions = [
+    { value: 'digital_marketing', label: 'Digital Marketing' },
+    { value: 'business_planning', label: 'Business Planning' },
+    { value: 'financial_management', label: 'Financial Management' },
+    { value: 'e_commerce', label: 'E-Commerce' },
+    { value: 'product_development', label: 'Product Development' },
+    { value: 'sales_techniques', label: 'Sales Techniques' },
+    { value: 'leadership_skills', label: 'Leadership Skills' },
+    { value: 'project_management', label: 'Project Management' }
+  ];
+
+  const levelOptions = [
+    '100 Level',
+    '200 Level',
+    '300 Level',
+    '400 Level',
+    '500 Level',
+    'Postgraduate'
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
       <div className="container mx-auto px-4 py-8">
@@ -138,7 +155,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
             <CardTitle className="text-2xl text-green-800 text-center">
               Entrepreneurship Skills Application
             </CardTitle>
-            <p className="text-center text-gray-600">
+            <p className="text-center text-green-600">
               Federal University of Lafia - Entrepreneurship Department
             </p>
           </CardHeader>
@@ -150,7 +167,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                   <Input
                     id="studentName"
                     value={formData.studentName}
-                    onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, studentName: e.target.value }))}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
@@ -161,7 +178,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                     id="studentEmail"
                     type="email"
                     value={formData.studentEmail}
-                    onChange={(e) => setFormData({ ...formData, studentEmail: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, studentEmail: e.target.value }))}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
@@ -174,7 +191,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                   <Input
                     id="phoneNumber"
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
@@ -184,7 +201,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                   <Input
                     id="matricNumber"
                     value={formData.matricNumber}
-                    onChange={(e) => setFormData({ ...formData, matricNumber: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, matricNumber: e.target.value }))}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
@@ -194,32 +211,22 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="department">Department *</Label>
-                  <Select 
-                    value={formData.departmentId} 
-                    onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
-                  >
+                  <Select value={formData.departmentId} onValueChange={(value) => setFormData(prev => ({ ...prev, departmentId: value }))}>
                     <SelectTrigger className="border-green-200 focus:border-green-500">
                       <SelectValue placeholder="Select your department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departmentsLoading ? (
-                        <SelectItem value="loading" disabled>Loading departments...</SelectItem>
-                      ) : (
-                        departments?.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name} ({dept.code})
-                          </SelectItem>
-                        ))
-                      )}
+                      {departments?.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name} ({dept.code})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="level">Level of Study *</Label>
-                  <Select 
-                    value={formData.levelOfStudy} 
-                    onValueChange={(value) => setFormData({ ...formData, levelOfStudy: value })}
-                  >
+                  <Select value={formData.levelOfStudy} onValueChange={(value) => setFormData(prev => ({ ...prev, levelOfStudy: value }))}>
                     <SelectTrigger className="border-green-200 focus:border-green-500">
                       <SelectValue placeholder="Select your level" />
                     </SelectTrigger>
@@ -236,11 +243,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
 
               <div>
                 <Label htmlFor="skill">Skill to Apply For *</Label>
-                <Select 
-                  value={formData.skillApplied} 
-                  onValueChange={(value: 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management') => 
-                    setFormData({ ...formData, skillApplied: value })}
-                >
+                <Select value={formData.skillApplied} onValueChange={(value) => setFormData(prev => ({ ...prev, skillApplied: value as SkillType }))}>
                   <SelectTrigger className="border-green-200 focus:border-green-500">
                     <SelectValue placeholder="Select a skill" />
                   </SelectTrigger>
@@ -256,30 +259,24 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
 
               <div>
                 <Label htmlFor="receipt">ESP Receipt (Optional)</Label>
-                <div className="border-2 border-dashed border-green-200 rounded-lg p-6 text-center">
-                  <input
+                <div className="mt-2">
+                  <Input
                     id="receipt"
                     type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                    accept="image/*,.pdf"
-                    className="hidden"
+                    className="border-green-200 focus:border-green-500"
                   />
-                  <Label htmlFor="receipt" className="cursor-pointer">
-                    <Upload className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                    <p className="text-sm text-gray-600">
-                      {receiptFile ? receiptFile.name : "Click to upload ESP receipt"}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Supports: JPG, PNG, PDF (Max: 5MB)
-                    </p>
-                  </Label>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Upload your ESP receipt (PDF, JPG, or PNG format)
+                  </p>
                 </div>
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full bg-green-700 hover:bg-green-800"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingDepartments}
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Application'}
               </Button>
