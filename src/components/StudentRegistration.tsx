@@ -5,11 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Upload, CheckCircle } from "lucide-react";
+import { ArrowLeft, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 interface StudentRegistrationProps {
   onBack: () => void;
@@ -17,39 +16,58 @@ interface StudentRegistrationProps {
 
 const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
   const [formData, setFormData] = useState({
-    student_name: '',
-    student_email: '',
-    phone_number: '',
-    department_id: '',
-    matric_number: '',
-    level_of_study: '',
-    skill_applied: ''
+    studentName: '',
+    studentEmail: '',
+    phoneNumber: '',
+    departmentId: '',
+    matricNumber: '',
+    levelOfStudy: '',
+    skillApplied: '' as 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management' | '',
   });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   // Fetch departments
-  const { data: departments } = useQuery({
+  const { data: departments, isLoading: departmentsLoading } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('departments')
         .select('*')
         .order('name');
+      
       if (error) throw error;
       return data;
     },
   });
 
-  const submitApplication = useMutation({
-    mutationFn: async () => {
+  const skillOptions = [
+    { value: 'digital_marketing', label: 'Digital Marketing' },
+    { value: 'business_planning', label: 'Business Planning' },
+    { value: 'financial_management', label: 'Financial Management' },
+    { value: 'e_commerce', label: 'E-Commerce' },
+    { value: 'product_development', label: 'Product Development' },
+    { value: 'sales_techniques', label: 'Sales Techniques' },
+    { value: 'leadership_skills', label: 'Leadership Skills' },
+    { value: 'project_management', label: 'Project Management' }
+  ];
+
+  const levelOptions = [
+    '100 Level', '200 Level', '300 Level', '400 Level', '500 Level', 'Postgraduate'
+  ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
       let receiptUrl = null;
 
       // Upload receipt if provided
       if (receiptFile) {
         const fileExt = receiptFile.name.split('.').pop();
-        const fileName = `${formData.matric_number}_${Date.now()}.${fileExt}`;
+        const fileName = `${formData.matricNumber}_${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('esp-receipts')
@@ -63,68 +81,49 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
       const { error } = await supabase
         .from('student_applications')
         .insert({
-          ...formData,
-          esp_receipt_url: receiptUrl
+          student_name: formData.studentName,
+          student_email: formData.studentEmail,
+          phone_number: formData.phoneNumber,
+          department_id: formData.departmentId,
+          matric_number: formData.matricNumber,
+          level_of_study: formData.levelOfStudy,
+          skill_applied: formData.skillApplied,
+          esp_receipt_url: receiptUrl,
         });
 
       if (error) throw error;
-    },
-    onSuccess: () => {
-      setIsSubmitted(true);
+
       toast({
-        title: "Application Submitted Successfully!",
-        description: "Your application has been received and is under review.",
+        title: "Application Submitted",
+        description: "Your application has been submitted successfully. You will be notified of the status via email.",
       });
-    },
-    onError: (error) => {
+
+      // Reset form
+      setFormData({
+        studentName: '',
+        studentEmail: '',
+        phoneNumber: '',
+        departmentId: '',
+        matricNumber: '',
+        levelOfStudy: '',
+        skillApplied: '',
+      });
+      setReceiptFile(null);
+
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to submit application. Please try again.",
+        title: "Submission Failed",
+        description: error.message || "Failed to submit application",
         variant: "destructive",
       });
-      console.error('Error submitting application:', error);
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    submitApplication.mutate();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const skillOptions = [
-    { value: 'digital_marketing', label: 'Digital Marketing' },
-    { value: 'business_planning', label: 'Business Planning' },
-    { value: 'financial_management', label: 'Financial Management' },
-    { value: 'e_commerce', label: 'E-Commerce' },
-    { value: 'product_development', label: 'Product Development' },
-    { value: 'sales_techniques', label: 'Sales Techniques' },
-    { value: 'leadership_skills', label: 'Leadership Skills' },
-    { value: 'project_management', label: 'Project Management' }
-  ];
-
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="text-center p-8">
-            <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-green-800 mb-2">Application Submitted!</h3>
-            <p className="text-gray-600 mb-6">
-              Thank you for your interest in our entrepreneurship program. 
-              We will review your application and notify you of the outcome.
-            </p>
-            <Button onClick={onBack} className="bg-green-700 hover:bg-green-800">
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
+      <div className="container mx-auto px-4 py-8">
         <Button 
           onClick={onBack} 
           variant="ghost" 
@@ -137,29 +136,32 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle className="text-2xl text-green-800 text-center">
-              Entrepreneurship Skills Application Form
+              Entrepreneurship Skills Application
             </CardTitle>
+            <p className="text-center text-gray-600">
+              Federal University of Lafia - Entrepreneurship Department
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="student_name">Full Name *</Label>
+                  <Label htmlFor="studentName">Full Name *</Label>
                   <Input
-                    id="student_name"
-                    value={formData.student_name}
-                    onChange={(e) => setFormData({...formData, student_name: e.target.value})}
+                    id="studentName"
+                    value={formData.studentName}
+                    onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="student_email">Email Address *</Label>
+                  <Label htmlFor="studentEmail">Email Address *</Label>
                   <Input
-                    id="student_email"
+                    id="studentEmail"
                     type="email"
-                    value={formData.student_email}
-                    onChange={(e) => setFormData({...formData, student_email: e.target.value})}
+                    value={formData.studentEmail}
+                    onChange={(e) => setFormData({ ...formData, studentEmail: e.target.value })}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
@@ -168,21 +170,21 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone_number">Phone Number *</Label>
+                  <Label htmlFor="phoneNumber">Phone Number *</Label>
                   <Input
-                    id="phone_number"
-                    value={formData.phone_number}
-                    onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                    id="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="matric_number">Matriculation Number *</Label>
+                  <Label htmlFor="matricNumber">Matric Number *</Label>
                   <Input
-                    id="matric_number"
-                    value={formData.matric_number}
-                    onChange={(e) => setFormData({...formData, matric_number: e.target.value})}
+                    id="matricNumber"
+                    value={formData.matricNumber}
+                    onChange={(e) => setFormData({ ...formData, matricNumber: e.target.value })}
                     required
                     className="border-green-200 focus:border-green-500"
                   />
@@ -192,42 +194,55 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="department">Department *</Label>
-                  <Select value={formData.department_id} onValueChange={(value) => setFormData({...formData, department_id: value})}>
+                  <Select 
+                    value={formData.departmentId} 
+                    onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+                  >
                     <SelectTrigger className="border-green-200 focus:border-green-500">
                       <SelectValue placeholder="Select your department" />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments?.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name} ({dept.code})
-                        </SelectItem>
-                      ))}
+                      {departmentsLoading ? (
+                        <SelectItem value="loading" disabled>Loading departments...</SelectItem>
+                      ) : (
+                        departments?.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name} ({dept.code})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="level_of_study">Level of Study *</Label>
-                  <Select value={formData.level_of_study} onValueChange={(value) => setFormData({...formData, level_of_study: value})}>
+                  <Label htmlFor="level">Level of Study *</Label>
+                  <Select 
+                    value={formData.levelOfStudy} 
+                    onValueChange={(value) => setFormData({ ...formData, levelOfStudy: value })}
+                  >
                     <SelectTrigger className="border-green-200 focus:border-green-500">
                       <SelectValue placeholder="Select your level" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="100L">100 Level</SelectItem>
-                      <SelectItem value="200L">200 Level</SelectItem>
-                      <SelectItem value="300L">300 Level</SelectItem>
-                      <SelectItem value="400L">400 Level</SelectItem>
-                      <SelectItem value="500L">500 Level</SelectItem>
-                      <SelectItem value="Graduate">Graduate</SelectItem>
+                      {levelOptions.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="skill_applied">Skill Program *</Label>
-                <Select value={formData.skill_applied} onValueChange={(value) => setFormData({...formData, skill_applied: value})}>
+                <Label htmlFor="skill">Skill to Apply For *</Label>
+                <Select 
+                  value={formData.skillApplied} 
+                  onValueChange={(value: 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management') => 
+                    setFormData({ ...formData, skillApplied: value })}
+                >
                   <SelectTrigger className="border-green-200 focus:border-green-500">
-                    <SelectValue placeholder="Select skill program to apply for" />
+                    <SelectValue placeholder="Select a skill" />
                   </SelectTrigger>
                   <SelectContent>
                     {skillOptions.map((skill) => (
@@ -241,26 +256,32 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
 
               <div>
                 <Label htmlFor="receipt">ESP Receipt (Optional)</Label>
-                <div className="mt-2">
-                  <Input
+                <div className="border-2 border-dashed border-green-200 rounded-lg p-6 text-center">
+                  <input
                     id="receipt"
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                    className="border-green-200 focus:border-green-500"
+                    accept="image/*,.pdf"
+                    className="hidden"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Upload your ESP receipt (PDF, JPG, or PNG format)
-                  </p>
+                  <Label htmlFor="receipt" className="cursor-pointer">
+                    <Upload className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                    <p className="text-sm text-gray-600">
+                      {receiptFile ? receiptFile.name : "Click to upload ESP receipt"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Supports: JPG, PNG, PDF (Max: 5MB)
+                    </p>
+                  </Label>
                 </div>
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full bg-green-700 hover:bg-green-800"
-                disabled={submitApplication.isPending}
+                disabled={isSubmitting}
               >
-                {submitApplication.isPending ? 'Submitting...' : 'Submit Application'}
+                {isSubmitting ? 'Submitting...' : 'Submit Application'}
               </Button>
             </form>
           </CardContent>
