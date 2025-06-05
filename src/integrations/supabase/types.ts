@@ -9,7 +9,110 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      departments: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      student_applications: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          department_id: string
+          esp_receipt_url: string | null
+          id: string
+          level_of_study: string
+          matric_number: string
+          phone_number: string
+          skill_applied: Database["public"]["Enums"]["skill_type"]
+          status: Database["public"]["Enums"]["application_status"] | null
+          student_email: string
+          student_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          department_id: string
+          esp_receipt_url?: string | null
+          id?: string
+          level_of_study: string
+          matric_number: string
+          phone_number: string
+          skill_applied: Database["public"]["Enums"]["skill_type"]
+          status?: Database["public"]["Enums"]["application_status"] | null
+          student_email: string
+          student_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          department_id?: string
+          esp_receipt_url?: string | null
+          id?: string
+          level_of_study?: string
+          matric_number?: string
+          phone_number?: string
+          skill_applied?: Database["public"]["Enums"]["skill_type"]
+          status?: Database["public"]["Enums"]["application_status"] | null
+          student_email?: string
+          student_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_applications_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +121,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      application_status: "pending" | "accepted" | "rejected"
+      skill_type:
+        | "digital_marketing"
+        | "business_planning"
+        | "financial_management"
+        | "e_commerce"
+        | "product_development"
+        | "sales_techniques"
+        | "leadership_skills"
+        | "project_management"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +245,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      application_status: ["pending", "accepted", "rejected"],
+      skill_type: [
+        "digital_marketing",
+        "business_planning",
+        "financial_management",
+        "e_commerce",
+        "product_development",
+        "sales_techniques",
+        "leadership_skills",
+        "project_management",
+      ],
+    },
   },
 } as const
