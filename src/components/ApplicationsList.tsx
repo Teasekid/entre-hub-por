@@ -13,7 +13,7 @@ interface Application {
   level_of_study: string;
   skill_applied?: string;
   skill_id?: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: string;
   created_at: string;
   departments: {
     name: string;

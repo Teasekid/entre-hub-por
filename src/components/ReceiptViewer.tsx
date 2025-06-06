@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, X } from "lucide-react";
@@ -71,9 +71,9 @@ const ReceiptViewer = ({ receiptUrl, studentName, onClose }: ReceiptViewerProps)
   };
 
   // Load receipt URL when component mounts
-  useState(() => {
+  useEffect(() => {
     getReceiptUrl();
-  });
+  }, [receiptUrl]);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>

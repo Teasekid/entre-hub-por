@@ -88,6 +88,10 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
         receiptUrl = fileName;
       }
 
+      // Get the selected skill to use as fallback for skill_applied
+      const selectedSkill = skills?.find(skill => skill.id === formData.skillApplied);
+      const skillAppliedValue = selectedSkill?.code || 'digital_marketing';
+
       // Submit application
       const { error } = await supabase
         .from('student_applications')
@@ -99,6 +103,7 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
           matric_number: formData.matricNumber,
           level_of_study: formData.levelOfStudy,
           skill_id: formData.skillApplied,
+          skill_applied: skillAppliedValue as any,
           esp_receipt_url: receiptUrl,
         });
 
