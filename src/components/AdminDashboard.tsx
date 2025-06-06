@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogOut, Download, Eye, Check, X, Users, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
@@ -61,11 +62,21 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
   }, {} as Record<string, any[]>) || {};
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Logged Out",
-      description: "Successfully logged out of admin dashboard.",
-    });
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Logged Out",
+        description: "Successfully logged out of admin dashboard.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Logout Failed",
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
+    }
   };
 
   const downloadCSV = (skillType: string = 'all') => {
@@ -140,15 +151,22 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-green-800">Admin Dashboard</h1>
-            <p className="text-green-600">Welcome back, {admin.name}</p>
+          <div className="flex items-center">
+            <img 
+              src="/lovable-uploads/ef7a18a8-dc00-4835-8d69-d99332d25737.png" 
+              alt="Federal University of Lafia Logo" 
+              className="h-12 w-12 mr-4"
+            />
+            <div>
+              <h1 className="text-3xl font-bold text-amber-800">Admin Dashboard</h1>
+              <p className="text-amber-700">Welcome back, {admin.name}</p>
+            </div>
           </div>
-          <Button onClick={handleLogout} variant="outline" className="border-green-700 text-green-700">
+          <Button onClick={handleLogout} variant="outline" className="border-amber-700 text-amber-700">
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
@@ -156,19 +174,19 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
 
         {/* Statistics Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="border-amber-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Total Applications</p>
-                  <p className="text-3xl font-bold text-green-800">{stats.total}</p>
+                  <p className="text-3xl font-bold text-amber-800">{stats.total}</p>
                 </div>
-                <Users className="h-8 w-8 text-green-600" />
+                <Users className="h-8 w-8 text-amber-700" />
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-amber-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -180,7 +198,7 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-amber-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -192,7 +210,7 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-amber-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -206,15 +224,15 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
         </div>
 
         {/* Main Content */}
-        <Card>
+        <Card className="border-amber-200">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-green-800">Student Applications</CardTitle>
+              <CardTitle className="text-amber-800">Student Applications</CardTitle>
               <div className="flex gap-2">
                 <Button 
                   onClick={() => downloadCSV('all')}
                   variant="outline"
-                  className="border-green-700 text-green-700"
+                  className="border-amber-700 text-amber-700"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download All
@@ -223,52 +241,46 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <Tabs value={selectedSkill} onValueChange={setSelectedSkill} className="w-full">
-              <TabsList className="grid grid-cols-3 lg:grid-cols-5 mb-6">
-                {skillOptions.slice(0, 5).map((option) => (
-                  <TabsTrigger key={option.value} value={option.value} className="text-xs">
-                    {option.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              
-              <div className="mb-4 flex flex-wrap gap-2">
-                {skillOptions.slice(5).map((option) => (
-                  <Button
-                    key={option.value}
-                    variant={selectedSkill === option.value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedSkill(option.value)}
-                    className={selectedSkill === option.value ? "bg-green-700" : "border-green-700 text-green-700"}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-amber-800 mb-2">
+                Filter by Skill
+              </label>
+              <Select value={selectedSkill} onValueChange={setSelectedSkill}>
+                <SelectTrigger className="w-64 border-amber-200">
+                  <SelectValue placeholder="Select a skill to filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  {skillOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedSkill !== 'all' && (
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-amber-800">
+                  {skillOptions.find(s => s.value === selectedSkill)?.label} Applications ({filteredApplications.length})
+                </h3>
+                <Button 
+                  onClick={() => downloadCSV(selectedSkill)}
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-700 text-amber-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Filtered
+                </Button>
               </div>
+            )}
 
-              {selectedSkill !== 'all' && (
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-green-800">
-                    {skillOptions.find(s => s.value === selectedSkill)?.label} Applications
-                  </h3>
-                  <Button 
-                    onClick={() => downloadCSV(selectedSkill)}
-                    variant="outline"
-                    size="sm"
-                    className="border-green-700 text-green-700"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              )}
-
-              <ApplicationsList
-                applications={filteredApplications}
-                isLoading={isLoading}
-                onViewApplication={setSelectedApplication}
-              />
-            </Tabs>
+            <ApplicationsList
+              applications={filteredApplications}
+              isLoading={isLoading}
+              onViewApplication={setSelectedApplication}
+            />
           </CardContent>
         </Card>
       </div>

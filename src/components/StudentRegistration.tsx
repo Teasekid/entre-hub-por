@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +11,12 @@ import { useQuery } from '@tanstack/react-query';
 
 interface StudentRegistrationProps {
   onBack: () => void;
+  onComplete: () => void;
 }
 
 type SkillType = 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management';
 
-const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
+const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) => {
   const [formData, setFormData] = useState({
     studentName: '',
     studentEmail: '',
@@ -95,7 +95,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
         description: "Your application has been submitted successfully and is pending review.",
       });
 
-      // Reset form
+      // Reset form and go back to home
       setFormData({
         studentName: '',
         studentEmail: '',
@@ -106,6 +106,9 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
         skillApplied: '',
       });
       setReceiptFile(null);
+      
+      // Call onComplete to go back to home page
+      onComplete();
 
     } catch (error: any) {
       toast({
@@ -139,23 +142,30 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
       <div className="container mx-auto px-4 py-8">
         <Button 
           onClick={onBack} 
           variant="ghost" 
-          className="mb-6 text-green-700 hover:text-green-800"
+          className="mb-6 text-amber-700 hover:text-amber-800"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
         </Button>
 
-        <Card className="max-w-2xl mx-auto">
+        <Card className="max-w-2xl mx-auto border-amber-200">
           <CardHeader>
-            <CardTitle className="text-2xl text-green-800 text-center">
+            <div className="flex justify-center mb-4">
+              <img 
+                src="/lovable-uploads/ef7a18a8-dc00-4835-8d69-d99332d25737.png" 
+                alt="Federal University of Lafia Logo" 
+                className="h-16 w-16"
+              />
+            </div>
+            <CardTitle className="text-2xl text-amber-800 text-center">
               Entrepreneurship Skills Application
             </CardTitle>
-            <p className="text-center text-green-600">
+            <p className="text-center text-amber-700">
               Federal University of Lafia - Entrepreneurship Department
             </p>
           </CardHeader>
@@ -169,7 +179,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                     value={formData.studentName}
                     onChange={(e) => setFormData(prev => ({ ...prev, studentName: e.target.value }))}
                     required
-                    className="border-green-200 focus:border-green-500"
+                    className="border-amber-200 focus:border-amber-500"
                   />
                 </div>
                 <div>
@@ -180,7 +190,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                     value={formData.studentEmail}
                     onChange={(e) => setFormData(prev => ({ ...prev, studentEmail: e.target.value }))}
                     required
-                    className="border-green-200 focus:border-green-500"
+                    className="border-amber-200 focus:border-amber-500"
                   />
                 </div>
               </div>
@@ -193,7 +203,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                     value={formData.phoneNumber}
                     onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
                     required
-                    className="border-green-200 focus:border-green-500"
+                    className="border-amber-200 focus:border-amber-500"
                   />
                 </div>
                 <div>
@@ -203,7 +213,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                     value={formData.matricNumber}
                     onChange={(e) => setFormData(prev => ({ ...prev, matricNumber: e.target.value }))}
                     required
-                    className="border-green-200 focus:border-green-500"
+                    className="border-amber-200 focus:border-amber-500"
                   />
                 </div>
               </div>
@@ -212,7 +222,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                 <div>
                   <Label htmlFor="department">Department *</Label>
                   <Select value={formData.departmentId} onValueChange={(value) => setFormData(prev => ({ ...prev, departmentId: value }))}>
-                    <SelectTrigger className="border-green-200 focus:border-green-500">
+                    <SelectTrigger className="border-amber-200 focus:border-amber-500">
                       <SelectValue placeholder="Select your department" />
                     </SelectTrigger>
                     <SelectContent>
@@ -227,7 +237,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                 <div>
                   <Label htmlFor="level">Level of Study *</Label>
                   <Select value={formData.levelOfStudy} onValueChange={(value) => setFormData(prev => ({ ...prev, levelOfStudy: value }))}>
-                    <SelectTrigger className="border-green-200 focus:border-green-500">
+                    <SelectTrigger className="border-amber-200 focus:border-amber-500">
                       <SelectValue placeholder="Select your level" />
                     </SelectTrigger>
                     <SelectContent>
@@ -244,7 +254,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
               <div>
                 <Label htmlFor="skill">Skill to Apply For *</Label>
                 <Select value={formData.skillApplied} onValueChange={(value) => setFormData(prev => ({ ...prev, skillApplied: value as SkillType }))}>
-                  <SelectTrigger className="border-green-200 focus:border-green-500">
+                  <SelectTrigger className="border-amber-200 focus:border-amber-500">
                     <SelectValue placeholder="Select a skill" />
                   </SelectTrigger>
                   <SelectContent>
@@ -265,7 +275,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                    className="border-green-200 focus:border-green-500"
+                    className="border-amber-200 focus:border-amber-500"
                   />
                   <p className="text-sm text-gray-500 mt-1">
                     Upload your ESP receipt (PDF, JPG, or PNG format)
@@ -275,7 +285,7 @@ const StudentRegistration = ({ onBack }: StudentRegistrationProps) => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-green-700 hover:bg-green-800"
+                className="w-full bg-amber-700 hover:bg-amber-800"
                 disabled={isSubmitting || isLoadingDepartments}
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Application'}

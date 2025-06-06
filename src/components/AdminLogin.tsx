@@ -61,20 +61,27 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
       <div className="w-full max-w-md px-4">
         <Button 
           onClick={onBack} 
           variant="ghost" 
-          className="mb-6 text-green-700 hover:text-green-800"
+          className="mb-6 text-amber-700 hover:text-amber-800"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
         </Button>
 
-        <Card>
+        <Card className="border-amber-200">
           <CardHeader>
-            <CardTitle className="text-2xl text-green-800 text-center">
+            <div className="flex justify-center mb-4">
+              <img 
+                src="/lovable-uploads/ef7a18a8-dc00-4835-8d69-d99332d25737.png" 
+                alt="Federal University of Lafia Logo" 
+                className="h-16 w-16"
+              />
+            </div>
+            <CardTitle className="text-2xl text-amber-800 text-center">
               Admin Login
             </CardTitle>
           </CardHeader>
@@ -88,7 +95,7 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="border-green-200 focus:border-green-500"
+                  className="border-amber-200 focus:border-amber-500"
                 />
               </div>
               <div>
@@ -99,12 +106,12 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="border-green-200 focus:border-green-500"
+                  className="border-amber-200 focus:border-amber-500"
                 />
               </div>
               <Button 
                 type="submit" 
-                className="w-full bg-green-700 hover:bg-green-800"
+                className="w-full bg-amber-700 hover:bg-amber-800"
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing In...' : 'Sign In'}

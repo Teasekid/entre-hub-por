@@ -42,6 +42,10 @@ const Index = () => {
         if (event === 'SIGNED_IN') {
           refetchSession();
           refetchAdmin();
+        } else if (event === 'SIGNED_OUT') {
+          refetchSession();
+          refetchAdmin();
+          setCurrentView('home');
         }
       }
     );
@@ -50,9 +54,12 @@ const Index = () => {
   }, [refetchSession, refetchAdmin]);
 
   const handleLoginSuccess = () => {
-    // Refresh session and admin data after successful login
     refetchSession();
     refetchAdmin();
+  };
+
+  const handleRegistrationComplete = () => {
+    setCurrentView('home');
   };
 
   // If user is authenticated and is an admin, show dashboard
@@ -61,7 +68,7 @@ const Index = () => {
   }
 
   if (currentView === 'register') {
-    return <StudentRegistration onBack={() => setCurrentView('home')} />;
+    return <StudentRegistration onBack={() => setCurrentView('home')} onComplete={handleRegistrationComplete} />;
   }
 
   if (currentView === 'admin') {
@@ -69,20 +76,27 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Header with Logo */}
         <div className="text-center mb-12">
-          <div className="flex justify-center items-center mb-4">
-            <GraduationCap className="h-16 w-16 text-green-700 mr-4" />
+          <div className="flex justify-center items-center mb-6">
+            <img 
+              src="/lovable-uploads/ef7a18a8-dc00-4835-8d69-d99332d25737.png" 
+              alt="Federal University of Lafia Logo" 
+              className="h-24 w-24 mr-6"
+            />
             <div>
-              <h1 className="text-4xl font-bold text-green-800 mb-2">
+              <h1 className="text-4xl font-bold text-amber-800 mb-2">
                 Federal University of Lafia
               </h1>
-              <h2 className="text-2xl font-semibold text-green-600">
+              <h2 className="text-2xl font-semibold text-amber-700">
                 Entrepreneurship Department
               </h2>
             </div>
+          </div>
+          <div className="bg-amber-700 text-white py-2 px-6 rounded-lg inline-block mb-4">
+            <p className="text-lg font-semibold">Integrity, Innovation, Excellence</p>
           </div>
           <p className="text-lg text-gray-700 max-w-3xl mx-auto">
             Join our entrepreneurship skills development program and unlock your potential 
@@ -91,13 +105,13 @@ const Index = () => {
         </div>
 
         {/* Action Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-12">
-          <Card className="hover:shadow-lg transition-shadow border-green-200">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <Card className="hover:shadow-lg transition-shadow border-amber-200">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <Users className="h-12 w-12 text-green-600" />
+                <Users className="h-12 w-12 text-amber-700" />
               </div>
-              <CardTitle className="text-green-800">Student Registration</CardTitle>
+              <CardTitle className="text-amber-800">Student Registration</CardTitle>
               <CardDescription>
                 Apply for entrepreneurship skills training programs
               </CardDescription>
@@ -105,7 +119,7 @@ const Index = () => {
             <CardContent>
               <Button 
                 onClick={() => setCurrentView('register')}
-                className="w-full bg-green-700 hover:bg-green-800 text-white"
+                className="w-full bg-amber-700 hover:bg-amber-800 text-white"
                 size="lg"
               >
                 Apply Now
@@ -113,12 +127,12 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow border-green-200">
+          <Card className="hover:shadow-lg transition-shadow border-amber-200">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <Award className="h-12 w-12 text-green-600" />
+                <Award className="h-12 w-12 text-amber-700" />
               </div>
-              <CardTitle className="text-green-800">Admin Dashboard</CardTitle>
+              <CardTitle className="text-amber-800">Admin Dashboard</CardTitle>
               <CardDescription>
                 Manage applications and student records
               </CardDescription>
@@ -127,38 +141,13 @@ const Index = () => {
               <Button 
                 onClick={() => setCurrentView('admin')}
                 variant="outline"
-                className="w-full border-green-700 text-green-700 hover:bg-green-50"
+                className="w-full border-amber-700 text-amber-700 hover:bg-amber-50"
                 size="lg"
               >
                 Admin Login
               </Button>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Available Skills */}
-        <div className="max-w-4xl mx-auto">
-          <h3 className="text-2xl font-bold text-green-800 text-center mb-8">
-            Available Skills Training Programs
-          </h3>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              'Digital Marketing',
-              'Business Planning',
-              'Financial Management',
-              'E-Commerce',
-              'Product Development',
-              'Sales Techniques',
-              'Leadership Skills',
-              'Project Management'
-            ].map((skill) => (
-              <Card key={skill} className="border-green-200">
-                <CardContent className="p-4 text-center">
-                  <h4 className="font-semibold text-green-700">{skill}</h4>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </div>
       </div>
     </div>
