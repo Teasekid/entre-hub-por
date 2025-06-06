@@ -11,10 +11,15 @@ interface Application {
   phone_number: string;
   matric_number: string;
   level_of_study: string;
-  skill_applied: string;
+  skill_applied?: string;
+  skill_id?: string;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
   departments: {
+    name: string;
+    code: string;
+  };
+  skills?: {
     name: string;
     code: string;
   };
@@ -36,10 +41,14 @@ const ApplicationsList = ({ applications, isLoading, onViewApplication }: Applic
     }
   };
 
-  const formatSkillName = (skill: string) => {
-    return skill.split('_').map(word => 
+  const formatSkillName = (application: Application) => {
+    if (application.skills?.name) {
+      return application.skills.name;
+    }
+    // Fallback for old applications
+    return application.skill_applied?.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    ).join(' ') || 'Unknown Skill';
   };
 
   if (isLoading) {
@@ -72,7 +81,7 @@ const ApplicationsList = ({ applications, isLoading, onViewApplication }: Applic
                 {application.departments.name} ({application.departments.code})
               </TableCell>
               <TableCell>{application.matric_number}</TableCell>
-              <TableCell>{formatSkillName(application.skill_applied)}</TableCell>
+              <TableCell>{formatSkillName(application)}</TableCell>
               <TableCell>
                 <Badge className={getStatusColor(application.status)}>
                   {application.status.charAt(0).toUpperCase() + application.status.slice(1)}

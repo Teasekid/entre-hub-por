@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Download, Mail } from "lucide-react";
+import { ArrowLeft, Download, Mail, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation } from '@tanstack/react-query';
+import ReceiptViewer from './ReceiptViewer';
 
 interface ApplicationDetailsProps {
   application: any;
@@ -20,6 +21,7 @@ interface ApplicationDetailsProps {
 const ApplicationDetails = ({ application, onBack, onUpdate }: ApplicationDetailsProps) => {
   const [status, setStatus] = useState(application.status);
   const [adminNotes, setAdminNotes] = useState(application.admin_notes || '');
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false);
   const { toast } = useToast();
 
   const updateApplicationMutation = useMutation({
@@ -41,7 +43,7 @@ const ApplicationDetails = ({ application, onBack, onUpdate }: ApplicationDetail
           body: {
             student_name: application.student_name,
             student_email: application.student_email,
-            skill_applied: application.skill_applied,
+            skill_applied: application.skills?.name || application.skill_applied,
             status: newStatus
           }
         });
@@ -113,10 +115,14 @@ const ApplicationDetails = ({ application, onBack, onUpdate }: ApplicationDetail
     }
   };
 
-  const formatSkillName = (skill: string) => {
-    return skill.split('_').map(word => 
+  const formatSkillName = (application: any) => {
+    if (application.skills?.name) {
+      return application.skills.name;
+    }
+    // Fallback for old applications
+    return application.skill_applied?.split('_').map((word: string) => 
       word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    ).join(' ') || 'Unknown Skill';
   };
 
   return (
@@ -178,20 +184,31 @@ const ApplicationDetails = ({ application, onBack, onUpdate }: ApplicationDetail
                 <h3 className="font-semibold text-amber-800 text-lg">Application Details</h3>
                 <div className="space-y-2">
                   <div>
-                    <span className="font-medium">Skill Applied:</span> {formatSkillName(application.skill_applied)}
+                    <span className="font-medium">Skill Applied:</span> {formatSkillName(application)}
                   </div>
                   <div>
                     <span className="font-medium">ESP Receipt:</span>
                     {application.esp_receipt_url ? (
-                      <Button 
-                        onClick={downloadReceipt}
-                        variant="outline" 
-                        size="sm" 
-                        className="ml-2 border-amber-700 text-amber-700"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </Button>
+                      <div className="flex gap-2 mt-2">
+                        <Button 
+                          onClick={() => setShowReceiptViewer(true)}
+                          variant="outline" 
+                          size="sm" 
+                          className="border-amber-700 text-amber-700"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button 
+                          onClick={downloadReceipt}
+                          variant="outline" 
+                          size="sm" 
+                          className="border-amber-700 text-amber-700"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                      </div>
                     ) : (
                       <span className="text-gray-500 ml-2">Not provided</span>
                     )}
@@ -242,6 +259,15 @@ const ApplicationDetails = ({ application, onBack, onUpdate }: ApplicationDetail
             </div>
           </CardContent>
         </Card>
+
+        {/* Receipt Viewer Modal */}
+        {showReceiptViewer && (
+          <ReceiptViewer
+            receiptUrl={application.esp_receipt_url}
+            studentName={application.student_name}
+            onClose={() => setShowReceiptViewer(false)}
+          />
+        )}
       </div>
     </div>
   );

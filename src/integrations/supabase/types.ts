@@ -57,6 +57,36 @@ export type Database = {
         }
         Relationships: []
       }
+      skills: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       student_applications: {
         Row: {
           admin_notes: string | null
@@ -68,7 +98,8 @@ export type Database = {
           matric_number: string
           phone_number: string
           skill_applied: Database["public"]["Enums"]["skill_type"]
-          status: Database["public"]["Enums"]["application_status"] | null
+          skill_id: string | null
+          status: string | null
           student_email: string
           student_name: string
           updated_at: string | null
@@ -83,7 +114,8 @@ export type Database = {
           matric_number: string
           phone_number: string
           skill_applied: Database["public"]["Enums"]["skill_type"]
-          status?: Database["public"]["Enums"]["application_status"] | null
+          skill_id?: string | null
+          status?: string | null
           student_email: string
           student_name: string
           updated_at?: string | null
@@ -98,7 +130,8 @@ export type Database = {
           matric_number?: string
           phone_number?: string
           skill_applied?: Database["public"]["Enums"]["skill_type"]
-          status?: Database["public"]["Enums"]["application_status"] | null
+          skill_id?: string | null
+          status?: string | null
           student_email?: string
           student_name?: string
           updated_at?: string | null
@@ -111,7 +144,80 @@ export type Database = {
             referencedRelation: "departments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "student_applications_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      trainer_skills: {
+        Row: {
+          assigned_at: string
+          id: string
+          skill_id: string | null
+          trainer_id: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          id?: string
+          skill_id?: string | null
+          trainer_id?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          id?: string
+          skill_id?: string | null
+          trainer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trainer_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trainer_skills_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trainers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

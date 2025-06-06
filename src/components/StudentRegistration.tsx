@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +15,6 @@ interface StudentRegistrationProps {
   onComplete: () => void;
 }
 
-type SkillType = 'digital_marketing' | 'business_planning' | 'financial_management' | 'e_commerce' | 'product_development' | 'sales_techniques' | 'leadership_skills' | 'project_management';
-
 const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) => {
   const [formData, setFormData] = useState({
     studentName: '',
@@ -24,7 +23,7 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
     departmentId: '',
     matricNumber: '',
     levelOfStudy: '',
-    skillApplied: '' as SkillType | '',
+    skillApplied: '',
   });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +36,21 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
       const { data, error } = await supabase
         .from('departments')
         .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch skills
+  const { data: skills, isLoading: isLoadingSkills } = useQuery({
+    queryKey: ['skills'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('skills')
+        .select('*')
+        .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
@@ -84,7 +98,7 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
           department_id: formData.departmentId,
           matric_number: formData.matricNumber,
           level_of_study: formData.levelOfStudy,
-          skill_applied: formData.skillApplied as SkillType,
+          skill_id: formData.skillApplied,
           esp_receipt_url: receiptUrl,
         });
 
@@ -120,17 +134,6 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
       setIsSubmitting(false);
     }
   };
-
-  const skillOptions = [
-    { value: 'digital_marketing', label: 'Digital Marketing' },
-    { value: 'business_planning', label: 'Business Planning' },
-    { value: 'financial_management', label: 'Financial Management' },
-    { value: 'e_commerce', label: 'E-Commerce' },
-    { value: 'product_development', label: 'Product Development' },
-    { value: 'sales_techniques', label: 'Sales Techniques' },
-    { value: 'leadership_skills', label: 'Leadership Skills' },
-    { value: 'project_management', label: 'Project Management' }
-  ];
 
   const levelOptions = [
     '100 Level',
@@ -253,14 +256,14 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
 
               <div>
                 <Label htmlFor="skill">Skill to Apply For *</Label>
-                <Select value={formData.skillApplied} onValueChange={(value) => setFormData(prev => ({ ...prev, skillApplied: value as SkillType }))}>
+                <Select value={formData.skillApplied} onValueChange={(value) => setFormData(prev => ({ ...prev, skillApplied: value }))}>
                   <SelectTrigger className="border-amber-200 focus:border-amber-500">
                     <SelectValue placeholder="Select a skill" />
                   </SelectTrigger>
                   <SelectContent>
-                    {skillOptions.map((skill) => (
-                      <SelectItem key={skill.value} value={skill.value}>
-                        {skill.label}
+                    {skills?.map((skill) => (
+                      <SelectItem key={skill.id} value={skill.id}>
+                        {skill.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -286,7 +289,7 @@ const StudentRegistration = ({ onBack, onComplete }: StudentRegistrationProps) =
               <Button 
                 type="submit" 
                 className="w-full bg-amber-700 hover:bg-amber-800"
-                disabled={isSubmitting || isLoadingDepartments}
+                disabled={isSubmitting || isLoadingDepartments || isLoadingSkills}
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Application'}
               </Button>

@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LogOut, Download, Eye, Check, X, Users, FileText } from "lucide-react";
+import { LogOut, Download, Eye, Check, X, Users, FileText, UserCheck, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ApplicationsList from './ApplicationsList';
 import ApplicationDetails from './ApplicationDetails';
+import TrainerManagement from './TrainerManagement';
+import SkillManagement from './SkillManagement';
 
 interface AdminDashboardProps {
   admin: any;
@@ -30,9 +32,25 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
         .from('student_applications')
         .select(`
           *,
-          departments (name, code)
+          departments (name, code),
+          skills (name, code)
         `)
         .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch skills for dropdown
+  const { data: skills } = useQuery({
+    queryKey: ['skills'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('skills')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
       
       if (error) throw error;
       return data;
@@ -49,17 +67,8 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
 
   // Filter applications by skill
   const filteredApplications = applications?.filter(app => 
-    selectedSkill === 'all' || app.skill_applied === selectedSkill
+    selectedSkill === 'all' || app.skill_id === selectedSkill
   ) || [];
-
-  // Group applications by skill for download
-  const applicationsBySkill = applications?.reduce((acc, app) => {
-    if (!acc[app.skill_applied]) {
-      acc[app.skill_applied] = [];
-    }
-    acc[app.skill_applied].push(app);
-    return acc;
-  }, {} as Record<string, any[]>) || {};
 
   const handleLogout = async () => {
     try {
@@ -79,8 +88,8 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
     }
   };
 
-  const downloadCSV = (skillType: string = 'all') => {
-    const dataToDownload = skillType === 'all' ? applications : applicationsBySkill[skillType] || [];
+  const downloadCSV = (skillId: string = 'all') => {
+    const dataToDownload = skillId === 'all' ? applications : applications?.filter(app => app.skill_id === skillId) || [];
     
     if (!dataToDownload?.length) {
       toast({
@@ -105,7 +114,7 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
         app.departments?.name || '',
         app.matric_number,
         app.level_of_study,
-        app.skill_applied.replace('_', ' '),
+        app.skills?.name || app.skill_applied || '',
         app.status,
         new Date(app.created_at).toLocaleDateString()
       ].join(','))
@@ -115,7 +124,8 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `applications_${skillType}_${new Date().toISOString().split('T')[0]}.csv`;
+    const skillName = skillId === 'all' ? 'all' : skills?.find(s => s.id === skillId)?.name || 'unknown';
+    a.download = `applications_${skillName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
 
@@ -124,18 +134,6 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
       description: `Applications exported successfully.`,
     });
   };
-
-  const skillOptions = [
-    { value: 'all', label: 'All Skills' },
-    { value: 'digital_marketing', label: 'Digital Marketing' },
-    { value: 'business_planning', label: 'Business Planning' },
-    { value: 'financial_management', label: 'Financial Management' },
-    { value: 'e_commerce', label: 'E-Commerce' },
-    { value: 'product_development', label: 'Product Development' },
-    { value: 'sales_techniques', label: 'Sales Techniques' },
-    { value: 'leadership_skills', label: 'Leadership Skills' },
-    { value: 'project_management', label: 'Project Management' }
-  ];
 
   if (selectedApplication) {
     return (
@@ -223,66 +221,100 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
           </Card>
         </div>
 
-        {/* Main Content */}
-        <Card className="border-amber-200">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-amber-800">Student Applications</CardTitle>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={() => downloadCSV('all')}
-                  variant="outline"
-                  className="border-amber-700 text-amber-700"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download All
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-amber-800 mb-2">
-                Filter by Skill
-              </label>
-              <Select value={selectedSkill} onValueChange={setSelectedSkill}>
-                <SelectTrigger className="w-64 border-amber-200">
-                  <SelectValue placeholder="Select a skill to filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  {skillOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Main Content with Tabs */}
+        <Tabs defaultValue="applications" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="applications">Applications</TabsTrigger>
+            <TabsTrigger value="trainers">Trainers</TabsTrigger>
+            <TabsTrigger value="skills">Skills</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+          </TabsList>
 
-            {selectedSkill !== 'all' && (
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-amber-800">
-                  {skillOptions.find(s => s.value === selectedSkill)?.label} Applications ({filteredApplications.length})
-                </h3>
-                <Button 
-                  onClick={() => downloadCSV(selectedSkill)}
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-700 text-amber-700"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Filtered
-                </Button>
-              </div>
-            )}
+          <TabsContent value="applications">
+            <Card className="border-amber-200">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-amber-800">Student Applications</CardTitle>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => downloadCSV('all')}
+                      variant="outline"
+                      className="border-amber-700 text-amber-700"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download All
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-amber-800 mb-2">
+                    Filter by Skill
+                  </label>
+                  <Select value={selectedSkill} onValueChange={setSelectedSkill}>
+                    <SelectTrigger className="w-64 border-amber-200">
+                      <SelectValue placeholder="Select a skill to filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Skills</SelectItem>
+                      {skills?.map((skill) => (
+                        <SelectItem key={skill.id} value={skill.id}>
+                          {skill.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <ApplicationsList
-              applications={filteredApplications}
-              isLoading={isLoading}
-              onViewApplication={setSelectedApplication}
-            />
-          </CardContent>
-        </Card>
+                {selectedSkill !== 'all' && (
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-amber-800">
+                      {skills?.find(s => s.id === selectedSkill)?.name} Applications ({filteredApplications.length})
+                    </h3>
+                    <Button 
+                      onClick={() => downloadCSV(selectedSkill)}
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-700 text-amber-700"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Filtered
+                    </Button>
+                  </div>
+                )}
+
+                <ApplicationsList
+                  applications={filteredApplications}
+                  isLoading={isLoading}
+                  onViewApplication={setSelectedApplication}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="trainers">
+            <TrainerManagement />
+          </TabsContent>
+
+          <TabsContent value="skills">
+            <SkillManagement />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <Card className="border-amber-200">
+              <CardHeader>
+                <CardTitle className="text-amber-800">Reports & Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="h-12 w-12 mx-auto mb-4" />
+                  <p>Reports and analytics features coming soon...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
