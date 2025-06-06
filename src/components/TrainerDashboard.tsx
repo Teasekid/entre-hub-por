@@ -1,12 +1,15 @@
-
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, Download, Users, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LogOut, Download, Eye, Users, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import ApplicationDetails from './ApplicationDetails';
+import ReceiptViewer from './ReceiptViewer';
 
 interface TrainerDashboardProps {
   trainer: any;
