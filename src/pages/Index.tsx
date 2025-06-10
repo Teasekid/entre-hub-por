@@ -1,153 +1,204 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, Award } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GraduationCap, Users, Shield } from "lucide-react";
 import StudentRegistration from '@/components/StudentRegistration';
 import AdminLogin from '@/components/AdminLogin';
 import AdminDashboard from '@/components/AdminDashboard';
-import { useQuery } from '@tanstack/react-query';
+import TrainerPage from '@/pages/TrainerPage';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState('home');
+  const [currentView, setCurrentView] = useState<'home' | 'student' | 'admin' | 'trainer'>('home');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user is logged in as admin
-  const { data: session, refetch: refetchSession } = useQuery({
-    queryKey: ['session'],
-    queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
-      return data.session;
-    },
-  });
-
-  const { data: adminData, refetch: refetchAdmin } = useQuery({
-    queryKey: ['admin', session?.user?.id],
-    queryFn: async () => {
-      if (!session?.user?.id) return null;
-      const { data } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
-      return data;
-    },
-    enabled: !!session?.user?.id,
-  });
-
-  // Set up auth state listener
   useEffect(() => {
+    // Check URL parameters for trainer mode
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    
+    if (mode === 'trainer') {
+      setCurrentView('trainer');
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if admin is already logged in
+    const checkAdminAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (adminData) {
+          setIsAdminLoggedIn(true);
+          setCurrentView('admin');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAdminAuth();
+
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_IN') {
-          refetchSession();
-          refetchAdmin();
-        } else if (event === 'SIGNED_OUT') {
-          refetchSession();
-          refetchAdmin();
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setIsAdminLoggedIn(false);
           setCurrentView('home');
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [refetchSession, refetchAdmin]);
+  }, []);
 
-  const handleLoginSuccess = () => {
-    refetchSession();
-    refetchAdmin();
+  const handleAdminLoginSuccess = () => {
+    setIsAdminLoggedIn(true);
+    setCurrentView('admin');
   };
 
-  const handleRegistrationComplete = () => {
-    setCurrentView('home');
-  };
-
-  // If user is authenticated and is an admin, show dashboard
-  if (session && adminData) {
-    return <AdminDashboard admin={adminData} />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
   }
 
-  if (currentView === 'register') {
-    return <StudentRegistration onBack={() => setCurrentView('home')} onComplete={handleRegistrationComplete} />;
+  if (currentView === 'trainer') {
+    return <TrainerPage />;
   }
 
   if (currentView === 'admin') {
-    return <AdminLogin onBack={() => setCurrentView('home')} onLoginSuccess={handleLoginSuccess} />;
+    if (isAdminLoggedIn) {
+      return <AdminDashboard />;
+    } else {
+      return (
+        <AdminLogin 
+          onBack={() => setCurrentView('home')}
+          onLoginSuccess={handleAdminLoginSuccess}
+        />
+      );
+    }
+  }
+
+  if (currentView === 'student') {
+    return <StudentRegistration onBack={() => setCurrentView('home')} />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
       <div className="container mx-auto px-4 py-8">
-        {/* Header with Logo */}
+        {/* Header */}
         <div className="text-center mb-12">
-          <div className="flex justify-center items-center mb-6">
+          <div className="flex justify-center mb-6">
             <img 
               src="/lovable-uploads/ef7a18a8-dc00-4835-8d69-d99332d25737.png" 
               alt="Federal University of Lafia Logo" 
-              className="h-24 w-24 mr-6"
+              className="h-24 w-24"
             />
-            <div>
-              <h1 className="text-4xl font-bold text-amber-800 mb-2">
-                Federal University of Lafia
-              </h1>
-              <h2 className="text-2xl font-semibold text-amber-700">
-                Entrepreneurship Department
-              </h2>
-            </div>
           </div>
-          <div className="bg-amber-700 text-white py-2 px-6 rounded-lg inline-block mb-4">
-            <p className="text-lg font-semibold">Integrity, Innovation, Excellence</p>
-          </div>
-          <p className="text-lg text-gray-700 max-w-3xl mx-auto">
-            Join our entrepreneurship skills development program and unlock your potential 
-            in various business areas. Apply now to enhance your entrepreneurial journey.
+          <h1 className="text-4xl font-bold text-amber-800 mb-4">
+            Federal University of Lafia
+          </h1>
+          <h2 className="text-2xl font-semibold text-amber-700 mb-2">
+            Entrepreneurship Skills Program (ESP)
+          </h2>
+          <p className="text-amber-600 text-lg max-w-2xl mx-auto">
+            Empowering students with essential entrepreneurial skills for the future. 
+            Register for our comprehensive training programs and unlock your potential.
           </p>
         </div>
 
         {/* Action Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          <Card className="hover:shadow-lg transition-shadow border-amber-200">
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          {/* Student Registration */}
+          <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
+                onClick={() => setCurrentView('student')}>
             <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <Users className="h-12 w-12 text-amber-700" />
-              </div>
+              <GraduationCap className="h-12 w-12 text-amber-600 mx-auto mb-4" />
               <CardTitle className="text-amber-800">Student Registration</CardTitle>
-              <CardDescription>
-                Apply for entrepreneurship skills training programs
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
-                onClick={() => setCurrentView('register')}
-                className="w-full bg-amber-700 hover:bg-amber-800 text-white"
-                size="lg"
-              >
-                Apply Now
+              <p className="text-amber-700 text-center mb-4">
+                Register for entrepreneurship training programs
+              </p>
+              <Button className="w-full bg-amber-700 hover:bg-amber-800">
+                Register Now
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow border-amber-200">
+          {/* Trainer Portal */}
+          <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
+                onClick={() => setCurrentView('trainer')}>
             <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <Award className="h-12 w-12 text-amber-700" />
-              </div>
-              <CardTitle className="text-amber-800">Admin Dashboard</CardTitle>
-              <CardDescription>
-                Manage applications and student records
-              </CardDescription>
+              <Users className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+              <CardTitle className="text-amber-800">Trainer Portal</CardTitle>
             </CardHeader>
             <CardContent>
-              <Button 
-                onClick={() => setCurrentView('admin')}
-                variant="outline"
-                className="w-full border-amber-700 text-amber-700 hover:bg-amber-50"
-                size="lg"
-              >
+              <p className="text-amber-700 text-center mb-4">
+                Access your trainer dashboard and manage students
+              </p>
+              <Button className="w-full bg-amber-700 hover:bg-amber-800">
+                Trainer Login
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Admin Portal */}
+          <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
+                onClick={() => setCurrentView('admin')}>
+            <CardHeader className="text-center">
+              <Shield className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+              <CardTitle className="text-amber-800">Admin Portal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-amber-700 text-center mb-4">
+                Manage applications, trainers, and system settings
+              </p>
+              <Button className="w-full bg-amber-700 hover:bg-amber-800">
                 Admin Login
               </Button>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Features Section */}
+        <div className="mt-16 text-center">
+          <h3 className="text-2xl font-semibold text-amber-800 mb-8">
+            Program Features
+          </h3>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-amber-100">
+              <h4 className="font-semibold text-amber-800 mb-2">Digital Marketing</h4>
+              <p className="text-amber-600 text-sm">Learn modern digital marketing strategies and tools</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-amber-100">
+              <h4 className="font-semibold text-amber-800 mb-2">Business Planning</h4>
+              <p className="text-amber-600 text-sm">Develop comprehensive business plans and strategies</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-amber-100">
+              <h4 className="font-semibold text-amber-800 mb-2">Financial Management</h4>
+              <p className="text-amber-600 text-sm">Master financial planning and management skills</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-amber-100">
+              <h4 className="font-semibold text-amber-800 mb-2">Leadership Skills</h4>
+              <p className="text-amber-600 text-sm">Build essential leadership and management capabilities</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-16 text-center text-amber-600">
+          <p>&copy; 2024 Federal University of Lafia. All rights reserved.</p>
         </div>
       </div>
     </div>

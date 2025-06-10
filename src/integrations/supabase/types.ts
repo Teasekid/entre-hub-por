@@ -153,6 +153,47 @@ export type Database = {
           },
         ]
       }
+      trainer_auth: {
+        Row: {
+          auth_user_id: string | null
+          created_at: string
+          id: string
+          password_set: boolean | null
+          setup_token: string | null
+          token_expires_at: string | null
+          trainer_id: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id?: string | null
+          created_at?: string
+          id?: string
+          password_set?: boolean | null
+          setup_token?: string | null
+          token_expires_at?: string | null
+          trainer_id: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string | null
+          created_at?: string
+          id?: string
+          password_set?: boolean | null
+          setup_token?: string | null
+          token_expires_at?: string | null
+          trainer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trainer_auth_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: true
+            referencedRelation: "trainers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trainer_skills: {
         Row: {
           assigned_at: string
@@ -224,7 +265,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_trainer_setup_token: {
+        Args: { trainer_email: string }
+        Returns: string
+      }
     }
     Enums: {
       application_status: "pending" | "accepted" | "rejected"
