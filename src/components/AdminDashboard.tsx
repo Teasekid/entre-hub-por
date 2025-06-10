@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import ApplicationsList from './ApplicationsList';
 import ApplicationDetails from './ApplicationDetails';
 import TrainerManagement from './TrainerManagement';
 import SkillManagement from './SkillManagement';
+import ReportsAndAnalytics from './ReportsAndAnalytics';
 
 interface AdminDashboardProps {
   admin: any;
@@ -302,17 +302,7 @@ const AdminDashboard = ({ admin }: AdminDashboardProps) => {
           </TabsContent>
 
           <TabsContent value="reports">
-            <Card className="border-amber-200">
-              <CardHeader>
-                <CardTitle className="text-amber-800">Reports & Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-gray-500">
-                  <FileText className="h-12 w-12 mx-auto mb-4" />
-                  <p>Reports and analytics features coming soon...</p>
-                </div>
-              </CardContent>
-            </Card>
+            <ReportsAndAnalytics />
           </TabsContent>
         </Tabs>
       </div>
