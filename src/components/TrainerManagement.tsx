@@ -65,14 +65,14 @@ const TrainerManagement = () => {
   // Add trainer mutation
   const addTrainerMutation = useMutation({
     mutationFn: async () => {
-      // First create trainer
+      // First create trainer with user_id set to null
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .insert({
           name: newTrainer.name,
           email: newTrainer.email,
           phone_number: newTrainer.phone_number,
-          user_id: crypto.randomUUID() // Generate a temporary user_id
+          user_id: null // Set to null instead of generating UUID
         })
         .select()
         .single();
