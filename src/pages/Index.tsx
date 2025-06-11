@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 const Index = () => {
   const [currentView, setCurrentView] = useState<'home' | 'student' | 'admin' | 'trainer'>('home');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [adminData, setAdminData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +38,7 @@ const Index = () => {
         
         if (adminData) {
           setIsAdminLoggedIn(true);
+          setAdminData(adminData);
           setCurrentView('admin');
         }
       }
@@ -51,6 +52,7 @@ const Index = () => {
       async (event, session) => {
         if (event === 'SIGNED_OUT') {
           setIsAdminLoggedIn(false);
+          setAdminData(null);
           setCurrentView('home');
         }
       }
@@ -60,8 +62,25 @@ const Index = () => {
   }, []);
 
   const handleAdminLoginSuccess = () => {
-    setIsAdminLoggedIn(true);
-    setCurrentView('admin');
+    // Refetch admin data after successful login
+    const fetchAdminData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (adminData) {
+          setAdminData(adminData);
+          setIsAdminLoggedIn(true);
+          setCurrentView('admin');
+        }
+      }
+    };
+    
+    fetchAdminData();
   };
 
   if (isLoading) {
@@ -77,8 +96,8 @@ const Index = () => {
   }
 
   if (currentView === 'admin') {
-    if (isAdminLoggedIn) {
-      return <AdminDashboard />;
+    if (isAdminLoggedIn && adminData) {
+      return <AdminDashboard admin={adminData} />;
     } else {
       return (
         <AdminLogin 
@@ -90,7 +109,12 @@ const Index = () => {
   }
 
   if (currentView === 'student') {
-    return <StudentRegistration onBack={() => setCurrentView('home')} />;
+    return (
+      <StudentRegistration 
+        onBack={() => setCurrentView('home')} 
+        onComplete={() => setCurrentView('home')}
+      />
+    );
   }
 
   return (
@@ -191,7 +215,7 @@ const Index = () => {
             </div>
             <div className="bg-white rounded-lg p-6 shadow-sm border border-amber-100">
               <h4 className="font-semibold text-amber-800 mb-2">Leadership Skills</h4>
-              <p className="text-amber-600 text-sm">Build essential leadership and management capabilities</p>
+              <p className="text-amber-600 text-slim">Build essential leadership and management capabilities</p>
             </div>
           </div>
         </div>
