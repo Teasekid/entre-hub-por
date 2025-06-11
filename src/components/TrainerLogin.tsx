@@ -98,6 +98,8 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
     }
 
     try {
+      console.log('Setting up password with token:', setupToken);
+      
       // Verify the setup token and get trainer info
       const { data: trainerAuth, error: authError } = await supabase
         .from('trainer_auth')
@@ -107,13 +109,26 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
         `)
         .eq('setup_token', setupToken)
         .gt('token_expires_at', new Date().toISOString())
-        .single();
+        .maybeSingle();
 
-      if (authError || !trainerAuth) {
-        throw new Error('Invalid or expired setup token.');
+      console.log('Trainer auth lookup result:', { trainerAuth, authError });
+
+      if (authError) {
+        console.error('Database error:', authError);
+        throw new Error('Database error occurred while verifying setup token.');
+      }
+
+      if (!trainerAuth) {
+        throw new Error('Invalid or expired setup token. Please contact your administrator for a new setup link.');
       }
 
       const trainerData = trainerAuth.trainers;
+
+      if (!trainerData) {
+        throw new Error('Trainer data not found. Please contact your administrator.');
+      }
+
+      console.log('Creating auth user for trainer:', trainerData.email);
 
       // Create auth user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -126,7 +141,12 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
         }
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error('Sign up error:', signUpError);
+        throw signUpError;
+      }
+
+      console.log('Auth user created:', authData.user?.id);
 
       if (authData.user) {
         // Update trainer_auth record with auth user ID and mark password as set
@@ -140,7 +160,10 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
           })
           .eq('id', trainerAuth.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Update error:', updateError);
+          throw updateError;
+        }
 
         toast({
           title: "Password Set Successfully",
@@ -151,6 +174,7 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
         onLoginSuccess(trainerData);
       }
     } catch (error: any) {
+      console.error('Setup password error:', error);
       toast({
         title: "Setup Failed",
         description: error.message || "Failed to set up password",
