@@ -7,6 +7,7 @@ import AdminLogin from '@/components/AdminLogin';
 import AdminDashboard from '@/components/AdminDashboard';
 import TrainerPage from '@/pages/TrainerPage';
 import { supabase } from '@/integrations/supabase/client';
+import LogoutButton from "@/components/LogoutButton";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'home' | 'student' | 'admin' | 'trainer'>('home');
@@ -118,7 +119,8 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 relative">
+      <LogoutButton />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
