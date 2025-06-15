@@ -193,6 +193,25 @@ const Index = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Trainer Signup */}
+          <div className="max-w-4xl mx-auto mt-8">
+            <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
+                  onClick={() => window.location.href = "/trainer-signup"}>
+              <CardHeader className="text-center">
+                <Users className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+                <CardTitle className="text-amber-800">Become a Trainer</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-amber-700 text-center mb-4">
+                  Are you an expert? Sign up to train students in entrepreneurship.
+                </p>
+                <Button className="w-full bg-amber-700 hover:bg-amber-800">
+                  Trainer Signup
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Features Section */}

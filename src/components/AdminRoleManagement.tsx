@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -118,10 +117,17 @@ export default function AdminRoleManagement() {
 
   if (loading) return <div>Loading user roles...</div>;
 
+  const noAdmins = Object.values(roles).every((userRoles) => !userRoles?.includes("admin"));
+
   return (
     <Card className="border-amber-200 mt-8">
       <CardHeader>
         <CardTitle className="text-amber-800">User Role Management</CardTitle>
+        {noAdmins ? (
+          <div className="text-red-600 text-sm mt-2">
+            No admin users found! The first logged-in user may assign themselves as admin using the form below.
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         <Table>
