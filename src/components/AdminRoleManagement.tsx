@@ -14,25 +14,20 @@ type UserRow = {
 };
 
 const ALL_ROLES = ["admin", "trainer", "moderator", "user"] as const;
+type RoleType = typeof ALL_ROLES[number];
 
 export default function AdminRoleManagement() {
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [roles, setRoles] = useState<Record<string, string[]>>({});
+  const [roles, setRoles] = useState<Record<string, RoleType[]>>({});
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Fetch all users (from Supabase Auth API) -- fallback: only return users who've signed up
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
 
-    // Supabase Auth API is not accessible from browser client for security,
-    // but for demo: we can fetch from 'trainers' and 'admins' tables.
-    // PRODUCTION: For a more complete solution, you'd create a restricted edge function or use the admin panel.
     async function fetchUsers() {
       let foundUsers: UserRow[] = [];
-
-      // We'll collect from the 'admins' and 'trainers' tables for demo.
       const { data: admins } = await supabase.from("admins").select("user_id, email");
       const { data: trainers } = await supabase.from("trainers").select("user_id, email");
 
@@ -51,7 +46,6 @@ export default function AdminRoleManagement() {
         );
       }
 
-      // Remove duplicate user_id (merge admin/trainer emails)
       const allUsers = Object.values(
         foundUsers.reduce<{ [id: string]: UserRow }>((acc, u) => {
           acc[u.id] = u;
@@ -59,17 +53,19 @@ export default function AdminRoleManagement() {
         }, {})
       );
 
-      // Get roles for all user_ids
       const userIds = allUsers.map(u => u.id);
       if (userIds.length > 0) {
         const { data: rolesData } = await supabase
           .from("user_roles")
           .select("user_id, role");
 
-        const rolesByUserId: Record<string, string[]> = {};
+        const rolesByUserId: Record<string, RoleType[]> = {};
         rolesData?.forEach((r: any) => {
           if (!rolesByUserId[r.user_id]) rolesByUserId[r.user_id] = [];
-          rolesByUserId[r.user_id].push(r.role);
+          // Only allow if r.role is in ALL_ROLES
+          if ((ALL_ROLES as ReadonlyArray<string>).includes(r.role)) {
+            rolesByUserId[r.user_id].push(r.role as RoleType);
+          }
         });
 
         if (isMounted) {
@@ -83,7 +79,6 @@ export default function AdminRoleManagement() {
         setLoading(false);
       }
     }
-
     fetchUsers();
     return () => {
       isMounted = false;
@@ -91,8 +86,7 @@ export default function AdminRoleManagement() {
   }, []);
 
   // Assign selected role to user
-  async function assignRole(userId: string, role: string) {
-    // Only allow if not already assigned
+  async function assignRole(userId: string, role: RoleType) {
     if (roles[userId]?.includes(role)) {
       toast({
         title: "Already assigned",
@@ -102,8 +96,8 @@ export default function AdminRoleManagement() {
     }
     const { error } = await supabase.from("user_roles").insert({
       user_id: userId,
-      role,
-    });
+      role: role,
+    } as { user_id: string; role: RoleType });
     if (error) {
       toast({
         title: "Error",
@@ -151,7 +145,7 @@ export default function AdminRoleManagement() {
                 </TableCell>
                 <TableCell>
                   <Select
-                    onValueChange={(role) => assignRole(user.id, role)}
+                    onValueChange={(value) => assignRole(user.id, value as RoleType)}
                     value=""
                   >
                     <SelectTrigger className="w-32">
