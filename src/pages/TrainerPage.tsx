@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import TrainerLogin from '@/components/TrainerLogin';
+import TrainerLogin from '@/components/trainer/TrainerLogin'; // Fixed import!
 import TrainerDashboard from '@/components/TrainerDashboard';
 import { supabase } from '@/integrations/supabase/client';
 

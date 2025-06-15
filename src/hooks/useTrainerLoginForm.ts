@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
@@ -19,8 +18,10 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromURL = urlParams.get('token');
     if (tokenFromURL) {
-      setSetupToken(extractSetupToken(tokenFromURL));
+      const token = extractSetupToken(tokenFromURL);
+      setSetupToken(token);
       setMode('setup');
+      console.log(`[TrainerLogin] Token from URL param (mount):`, token);
     }
   }, []);
 
@@ -30,7 +31,9 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       const urlParams = new URLSearchParams(window.location.search);
       const tokenFromURL = urlParams.get('token');
       if (tokenFromURL) {
-        setSetupToken(extractSetupToken(tokenFromURL));
+        const token = extractSetupToken(tokenFromURL);
+        setSetupToken(token);
+        console.log(`[TrainerLogin] Token from URL param (mode switch):`, token);
       }
     } else {
       setSetupToken('');
@@ -75,7 +78,9 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const cleanedToken = extractSetupToken(setupToken);
+    const cleanedToken = extractSetupToken(setupToken?.trim());
+    console.log("[TrainerLogin] Cleaned setup token on submit:", cleanedToken);
+
     if (!cleanedToken || cleanedToken.length !== 64) {
       toast({
         title: "Setup Token Required",
@@ -104,12 +109,14 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       return;
     }
     try {
+      console.log("[TrainerLogin] Attempting token verification", { cleanedToken });
       const { data: trainerAuth, error: authError } = await supabase
         .from('trainer_auth')
         .select(`*, trainers (*)`)
         .eq('setup_token', cleanedToken)
         .gt('token_expires_at', new Date().toISOString())
         .maybeSingle();
+      console.log("[TrainerLogin] Trainer auth lookup result:", { trainerAuth, authError });
       if (authError) throw new Error('Database error occurred while verifying setup token.');
       if (!trainerAuth) throw new Error('Invalid or expired setup token. Please ensure you are copying the token from the setup email, or ask admin for a new one.');
       const trainerData = trainerAuth.trainers;
@@ -152,6 +159,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         onLoginSuccess(trainerData);
       }
     } catch (error: any) {
+      console.error("[TrainerLogin] Setup password error:", error);
       toast({
         title: "Setup Failed",
         description: error.message || "Failed to set up password",
