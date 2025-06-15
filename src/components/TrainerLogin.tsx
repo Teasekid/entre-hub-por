@@ -22,15 +22,31 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Check if there's a setup token in the URL
+  // Ensure setup token is updated from the URL, but only if present and mode is set up
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-      setSetupToken(token);
+    const tokenFromURL = urlParams.get('token')?.trim();
+    if (tokenFromURL) {
+      setSetupToken(tokenFromURL);
       setMode('setup');
     }
   }, []);
+
+  // Helper: when switching to setup mode, if token in URL, autofill it
+  useEffect(() => {
+    if (mode === 'setup') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromURL = urlParams.get('token')?.trim();
+      if (tokenFromURL) {
+        setSetupToken(tokenFromURL);
+      }
+    } else {
+      // Reset all trainer setup fields upon switching back to login
+      setSetupToken('');
+      setPassword('');
+      setConfirmPassword('');
+    }
+  }, [mode]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +93,18 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
     e.preventDefault();
     setIsLoading(true);
 
+    const cleanedToken = setupToken.trim();
+
+    if (!cleanedToken) {
+      toast({
+        title: "Setup Token Required",
+        description: "Please enter or paste a valid setup token.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast({
         title: "Password Mismatch",
@@ -98,28 +126,28 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
     }
 
     try {
-      console.log('Setting up password with token:', setupToken);
-      
-      // Verify the setup token and get trainer info
+      // Debug: Log what we're looking up
+      console.log('Attempting token verification', { cleanedToken });
+
+      // Step 1: Verify the setup token and get trainer info
       const { data: trainerAuth, error: authError } = await supabase
         .from('trainer_auth')
         .select(`
           *,
           trainers (*)
         `)
-        .eq('setup_token', setupToken)
+        .eq('setup_token', cleanedToken)
         .gt('token_expires_at', new Date().toISOString())
         .maybeSingle();
 
       console.log('Trainer auth lookup result:', { trainerAuth, authError });
 
       if (authError) {
-        console.error('Database error:', authError);
         throw new Error('Database error occurred while verifying setup token.');
       }
 
       if (!trainerAuth) {
-        throw new Error('Invalid or expired setup token. Please contact your administrator for a new setup link.');
+        throw new Error('Invalid or expired setup token. Please ensure you are copying the full link from the setup email or ask the admin to generate a fresh token.');
       }
 
       const trainerData = trainerAuth.trainers;
@@ -128,28 +156,36 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
         throw new Error('Trainer data not found. Please contact your administrator.');
       }
 
-      console.log('Creating auth user for trainer:', trainerData.email);
-
-      // Create auth user
+      // Step 2: Create auth user if not already set
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: trainerData.email,
         password: password,
         options: {
           data: {
             name: trainerData.name,
-          }
+          },
+          // Optionally, set emailRedirectTo for welcome verification links; currently not used here
         }
       });
 
       if (signUpError) {
-        console.error('Sign up error:', signUpError);
+        // Handle "User already registered" gracefully
+        if (signUpError.message?.toLowerCase().includes('already registered')) {
+          toast({
+            title: "User Already Registered",
+            description: "A user with this email has already registered. Please try logging in instead.",
+            variant: "destructive",
+          });
+          // Switch to login mode to help the user continue
+          setMode('login');
+          setIsLoading(false);
+          return;
+        }
         throw signUpError;
       }
 
-      console.log('Auth user created:', authData.user?.id);
-
+      // Step 3: Mark password as set, clear setup token
       if (authData.user) {
-        // Update trainer_auth record with auth user ID and mark password as set
         const { error: updateError } = await supabase
           .from('trainer_auth')
           .update({
@@ -161,7 +197,6 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
           .eq('id', trainerAuth.id);
 
         if (updateError) {
-          console.error('Update error:', updateError);
           throw updateError;
         }
 
@@ -219,10 +254,10 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
                     id="setup-token"
                     type="text"
                     value={setupToken}
-                    onChange={(e) => setSetupToken(e.target.value)}
+                    onChange={e => setSetupToken(e.target.value.trim())}
                     required
                     className="border-amber-200 focus:border-amber-500"
-                    placeholder="Enter your setup token"
+                    placeholder="Paste your setup token here"
                   />
                 </div>
                 <div>
@@ -231,7 +266,7 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={e => setPassword(e.target.value)}
                     required
                     className="border-amber-200 focus:border-amber-500"
                   />
@@ -242,7 +277,7 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
                     id="confirm-password"
                     type="password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={e => setConfirmPassword(e.target.value)}
                     required
                     className="border-amber-200 focus:border-amber-500"
                   />
@@ -312,3 +347,4 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
 };
 
 export default TrainerLogin;
+
