@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,21 @@ interface TrainerLoginProps {
   onLoginSuccess: (trainer: any) => void;
 }
 
+const extractSetupToken = (input: string): string => {
+  // Handles ‘token=...’ anywhere in the string (e.g. from pasted URLs), or just the token
+  if (!input) return "";
+  // Try to get token from a URL or param string
+  const urlMatch = input.match(/[?&]token=([a-fA-F0-9]{64})/);
+  if (urlMatch) return urlMatch[1];
+  // If clean hex
+  const hexMatch = input.match(/^[a-fA-F0-9]{64}$/);
+  if (hexMatch) return hexMatch[0];
+  // Try to find token in the string in case user pastes with extra stuff
+  const fallback = input.match(/([a-fA-F0-9]{64})/);
+  if (fallback) return fallback[1];
+  return input.trim();
+};
+
 const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
   const [mode, setMode] = useState<'login' | 'setup'>('login');
   const [email, setEmail] = useState('');
@@ -25,9 +39,10 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
   // Ensure setup token is updated from the URL, but only if present and mode is set up
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromURL = urlParams.get('token')?.trim();
+    const tokenFromURL = urlParams.get('token');
     if (tokenFromURL) {
-      setSetupToken(tokenFromURL);
+      const normalized = extractSetupToken(tokenFromURL);
+      setSetupToken(normalized);
       setMode('setup');
     }
   }, []);
@@ -36,9 +51,9 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
   useEffect(() => {
     if (mode === 'setup') {
       const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromURL = urlParams.get('token')?.trim();
+      const tokenFromURL = urlParams.get('token');
       if (tokenFromURL) {
-        setSetupToken(tokenFromURL);
+        setSetupToken(extractSetupToken(tokenFromURL));
       }
     } else {
       // Reset all trainer setup fields upon switching back to login
@@ -93,12 +108,13 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const cleanedToken = setupToken.trim();
+    // Always normalize before using
+    const cleanedToken = extractSetupToken(setupToken);
 
-    if (!cleanedToken) {
+    if (!cleanedToken || cleanedToken.length !== 64) {
       toast({
         title: "Setup Token Required",
-        description: "Please enter or paste a valid setup token.",
+        description: "Please enter or paste a valid setup token (from your email link).",
         variant: "destructive",
       });
       setIsLoading(false);
@@ -147,7 +163,7 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
       }
 
       if (!trainerAuth) {
-        throw new Error('Invalid or expired setup token. Please ensure you are copying the full link from the setup email or ask the admin to generate a fresh token.');
+        throw new Error('Invalid or expired setup token. Please ensure you are copying the token from the setup email, or ask admin for a new one.');
       }
 
       const trainerData = trainerAuth.trainers;
@@ -347,4 +363,3 @@ const TrainerLogin = ({ onBack, onLoginSuccess }: TrainerLoginProps) => {
 };
 
 export default TrainerLogin;
-
