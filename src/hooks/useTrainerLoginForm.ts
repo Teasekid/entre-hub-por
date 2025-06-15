@@ -74,7 +74,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   };
 
-  // Setup password handler - ENHANCED LOGGING
+  // Setup password handler - ENHANCED LOGIC: checks token first, then adds to Auth users
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -109,45 +109,61 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       return;
     }
     try {
-      console.log("[TrainerLogin] Attempting token verification", { cleanedToken, tokenFromField: setupToken });
-      // Get ALL candidate rows for full diagnostics:
-      const { data: allRows, error: allError } = await supabase
-        .from('trainer_auth')
-        .select('*');
-
-      console.log("[TrainerLogin][DEBUG] All trainer_auth rows:", allRows);
-
-      // Direct, more verbose token lookup with logging
+      // Step 1: Check for token existence in trainer_auth table before anything else
       const { data: trainerAuth, error: authError } = await supabase
         .from('trainer_auth')
-        .select(`*, trainers (*)`)
+        .select('*, trainers (*)')
         .eq('setup_token', cleanedToken)
         .gt('token_expires_at', new Date().toISOString())
         .maybeSingle();
-      console.log("[TrainerLogin] Trainer auth lookup result:", { trainerAuth, authError });
-      if (authError) throw new Error('Database error occurred while verifying setup token.');
-      if (!trainerAuth) {
-        // Log candidate possibly matching token for debug
-        if (allRows?.length) {
-          const foundTokenRow = allRows.find((row: any) => row.setup_token === cleanedToken);
-          if (foundTokenRow) {
-            console.warn("[TrainerLogin][DEBUG] Found token in auth table but token_expires_at may be expired:", foundTokenRow);
-          } else {
-            console.warn("[TrainerLogin][DEBUG] Token not present at all in auth table:", cleanedToken);
-          }
-        }
-        throw new Error('Invalid or expired setup token. Please ensure you are copying the token from the setup email, or ask admin for a new one.');
+
+      if (authError) {
+        throw new Error('Database error occurred while verifying setup token.');
       }
+      if (!trainerAuth) {
+        // Detailed diagnostics for devs:
+        const { data: allRows } = await supabase.from("trainer_auth").select("*");
+        const foundTokenRow = allRows?.find((row: any) => row.setup_token === cleanedToken);
+        if (foundTokenRow) {
+          console.warn("[TrainerLogin][DEBUG] Found token in auth table but token_expires_at may be expired:", foundTokenRow);
+        } else {
+          console.warn("[TrainerLogin][DEBUG] Token not present at all in auth table:", cleanedToken);
+        }
+        toast({
+          title: "Invalid or Expired Token",
+          description: "This setup token is invalid or has expired. Please request a new one from admin.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 2: Auth row found, get linked trainer
       const trainerData = trainerAuth.trainers;
-      if (!trainerData) throw new Error('Trainer data not found. Please contact your administrator.');
-      // sign up (even if user exists, show helpful error)
+      if (!trainerData) {
+        toast({
+          title: "Trainer not found",
+          description: "No trainer found for this setup token. Please contact your administrator.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 3: Try to sign up user in Supabase Auth (always try; if already exists, catch and handle)
+      // Always provide trainer's email (from DB) and the password from user input
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: trainerData.email,
         password: password,
         options: { data: { name: trainerData.name } }
       });
+
       if (signUpError) {
-        if (signUpError.message?.toLowerCase().includes('already registered')) {
+        // User might already exist in Supabase Auth
+        if (
+          signUpError.message?.toLowerCase().includes('already registered') ||
+          signUpError.message?.toLowerCase().includes('user already exists')
+        ) {
           toast({
             title: "User Already Registered",
             description: "A user with this email has already registered. Please try logging in instead.",
@@ -156,10 +172,12 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
           setMode('login');
           setIsLoading(false);
           return;
+        } else {
+          throw signUpError;
         }
-        throw signUpError;
       }
-      // Mark as password set
+
+      // Step 4: Mark password as set in trainer_auth (link Supabase Auth user id to trainer_auth entry)
       if (authData.user) {
         const { error: updateError } = await supabase
           .from('trainer_auth')
@@ -176,9 +194,16 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
           description: "You can now log in with your new password.",
         });
         onLoginSuccess(trainerData);
+      } else {
+        // Fallback: this should almost never happen if signUp succeeded
+        toast({
+          title: "Unexpected Error",
+          description: "Sign up succeeded but no user was returned. Please try logging in.",
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
-      console.error("[TrainerLogin] Setup password error:", error);
+      console.error("[TrainerLogin][ERROR] Setup password error:", error);
       toast({
         title: "Setup Failed",
         description: error.message || "Failed to set up password",
