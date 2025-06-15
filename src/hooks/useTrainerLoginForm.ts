@@ -74,7 +74,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   };
 
-  // Setup password handler
+  // Setup password handler - ENHANCED LOGGING
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -109,7 +109,15 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       return;
     }
     try {
-      console.log("[TrainerLogin] Attempting token verification", { cleanedToken });
+      console.log("[TrainerLogin] Attempting token verification", { cleanedToken, tokenFromField: setupToken });
+      // Get ALL candidate rows for full diagnostics:
+      const { data: allRows, error: allError } = await supabase
+        .from('trainer_auth')
+        .select('*');
+
+      console.log("[TrainerLogin][DEBUG] All trainer_auth rows:", allRows);
+
+      // Direct, more verbose token lookup with logging
       const { data: trainerAuth, error: authError } = await supabase
         .from('trainer_auth')
         .select(`*, trainers (*)`)
@@ -118,7 +126,18 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         .maybeSingle();
       console.log("[TrainerLogin] Trainer auth lookup result:", { trainerAuth, authError });
       if (authError) throw new Error('Database error occurred while verifying setup token.');
-      if (!trainerAuth) throw new Error('Invalid or expired setup token. Please ensure you are copying the token from the setup email, or ask admin for a new one.');
+      if (!trainerAuth) {
+        // Log candidate possibly matching token for debug
+        if (allRows?.length) {
+          const foundTokenRow = allRows.find((row: any) => row.setup_token === cleanedToken);
+          if (foundTokenRow) {
+            console.warn("[TrainerLogin][DEBUG] Found token in auth table but token_expires_at may be expired:", foundTokenRow);
+          } else {
+            console.warn("[TrainerLogin][DEBUG] Token not present at all in auth table:", cleanedToken);
+          }
+        }
+        throw new Error('Invalid or expired setup token. Please ensure you are copying the token from the setup email, or ask admin for a new one.');
+      }
       const trainerData = trainerAuth.trainers;
       if (!trainerData) throw new Error('Trainer data not found. Please contact your administrator.');
       // sign up (even if user exists, show helpful error)
