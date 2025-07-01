@@ -71,21 +71,21 @@ const TrainerManagement = () => {
   // Add trainer mutation
   const addTrainerMutation = useMutation({
     mutationFn: async () => {
-      // First create trainer with user_id set to null
+      // Create trainer without user_id (will be set during login/setup)
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .insert({
           name: newTrainer.name,
           email: newTrainer.email,
           phone_number: newTrainer.phone_number,
-          user_id: null // Set to null instead of generating UUID
+          user_id: null
         })
         .select()
         .single();
 
       if (trainerError) throw trainerError;
 
-      // Then assign skills
+      // Assign skills if any
       if (newTrainer.skills.length > 0) {
         const skillAssignments = newTrainer.skills.map(skillId => ({
           trainer_id: trainerData.id,
@@ -98,6 +98,8 @@ const TrainerManagement = () => {
 
         if (skillsError) throw skillsError;
       }
+
+      return trainerData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainers'] });
@@ -105,10 +107,11 @@ const TrainerManagement = () => {
       setNewTrainer({ name: '', email: '', phone_number: '', skills: [] });
       toast({
         title: "Success",
-        description: "Trainer added successfully.",
+        description: "Trainer added successfully. Generate a setup token for them to create their password.",
       });
     },
     onError: (error: any) => {
+      console.error("Trainer creation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to add trainer",

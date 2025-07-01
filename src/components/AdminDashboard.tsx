@@ -1,105 +1,72 @@
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, LogOut } from "lucide-react";
 import TrainerManagement from "./TrainerManagement";
 import SkillManagement from "./SkillManagement";
 import ReportsAndAnalytics from "./ReportsAndAnalytics";
-import ApplicationsList from "./ApplicationsList";
 import AdminRoleManagement from "./AdminRoleManagement";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-type Department = {
-  name: string;
-  code: string;
-};
+const AdminDashboard = ({ admin, onNavigateToStudents }: { admin: any; onNavigateToStudents: () => void }) => {
+  const { toast } = useToast();
 
-type Skill = {
-  name: string;
-  code: string;
-};
-
-type Application = {
-  id: string;
-  student_name: string;
-  student_email: string;
-  phone_number: string;
-  matric_number: string;
-  level_of_study: string;
-  skill_applied?: string;
-  skill_id?: string;
-  status: string;
-  created_at: string;
-  departments: Department;
-  skills?: Skill;
-};
-
-const AdminDashboard = ({ admin }: { admin: any }) => {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    async function fetchApplications() {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("student_applications")
-        .select(`
-          id,
-          student_name,
-          student_email,
-          phone_number,
-          matric_number,
-          level_of_study,
-          skill_applied,
-          skill_id,
-          status,
-          created_at,
-          departments (
-            name, code
-          ),
-          skills (
-            name, code
-          )
-        `)
-        .order("created_at", { ascending: false });
-
-      if (!mounted) return;
-      if (error) {
-        setApplications([]);
-      } else {
-        // Assign departments and skills as required (flatten if needed)
-        setApplications(
-          (data || []).map((x) => ({
-            ...x,
-            departments: x.departments ?? { name: "", code: "" },
-            skills: x.skills ?? undefined,
-          }))
-        );
-      }
-      setIsLoading(false);
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Logged Out",
+        description: "Successfully logged out of admin dashboard.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Logout Failed",
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
     }
-    fetchApplications();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  function handleViewApplication(application: Application) {
-    // Handle view application: this stub can be extended further
-    alert(`Viewing application for: ${application.student_name}`);
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
       <div className="container mx-auto px-3 py-6">
-        <h1 className="text-3xl font-bold text-amber-800 mb-4">
-          Admin Dashboard
-        </h1>
-        <ApplicationsList
-          applications={applications}
-          isLoading={isLoading}
-          onViewApplication={handleViewApplication}
-        />
-        <div className="my-8" />
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center">
+            <img 
+              src="/lovable-uploads/ef7a18a8-dc00-4835-8d69-d99332d25737.png" 
+              alt="Federal University of Lafia Logo" 
+              className="h-12 w-12 mr-4"
+            />
+            <div>
+              <h1 className="text-3xl font-bold text-amber-800">Admin Dashboard</h1>
+              <p className="text-amber-700">Welcome, {admin.name}</p>
+            </div>
+          </div>
+          <Button onClick={handleLogout} variant="outline" className="border-amber-700 text-amber-700">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+        
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <Card className="border-amber-200 hover:shadow-lg transition-shadow cursor-pointer" onClick={onNavigateToStudents}>
+            <CardHeader>
+              <CardTitle className="text-amber-800 flex items-center">
+                <Users className="h-5 w-5 mr-2" />
+                Student Applications
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">View and manage student applications</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <TrainerManagement />
         <div className="my-8" />
         <SkillManagement />

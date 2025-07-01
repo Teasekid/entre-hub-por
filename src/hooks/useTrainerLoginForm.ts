@@ -42,22 +42,37 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   }, [mode]);
 
-  // Login handler
+  // Login handler - ENHANCED to update trainer user_id
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .select('*')
         .eq('email', email)
         .single();
+      
       if (trainerError || !trainerData) {
         await supabase.auth.signOut();
         throw new Error('Access denied. Trainer account not found.');
       }
+
+      // Update trainer record with user_id if not set
+      if (!trainerData.user_id && data.user) {
+        const { error: updateError } = await supabase
+          .from('trainers')
+          .update({ user_id: data.user.id })
+          .eq('id', trainerData.id);
+        
+        if (updateError) {
+          console.error('Failed to update trainer user_id:', updateError);
+        }
+      }
+      
       toast({
         title: "Login Successful",
         description: `Welcome back, ${trainerData.name}!`,
@@ -74,7 +89,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   };
 
-  // Setup password handler - ENHANCED LOGIC: checks token first, then adds to Auth users
+  // Setup password handler - ENHANCED to link user_id properly
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -109,7 +124,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       return;
     }
     try {
-      // Step 1: Check for token existence in trainer_auth table before anything else
+      // Step 1: Check for token existence in trainer_auth table
       const { data: trainerAuth, error: authError } = await supabase
         .from('trainer_auth')
         .select('*, trainers (*)')
@@ -121,14 +136,6 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         throw new Error('Database error occurred while verifying setup token.');
       }
       if (!trainerAuth) {
-        // Detailed diagnostics for devs:
-        const { data: allRows } = await supabase.from("trainer_auth").select("*");
-        const foundTokenRow = allRows?.find((row: any) => row.setup_token === cleanedToken);
-        if (foundTokenRow) {
-          console.warn("[TrainerLogin][DEBUG] Found token in auth table but token_expires_at may be expired:", foundTokenRow);
-        } else {
-          console.warn("[TrainerLogin][DEBUG] Token not present at all in auth table:", cleanedToken);
-        }
         toast({
           title: "Invalid or Expired Token",
           description: "This setup token is invalid or has expired. Please request a new one from admin.",
@@ -138,7 +145,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         return;
       }
 
-      // Step 2: Auth row found, get linked trainer
+      // Step 2: Get linked trainer
       const trainerData = trainerAuth.trainers;
       if (!trainerData) {
         toast({
@@ -150,8 +157,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         return;
       }
 
-      // Step 3: Try to sign up user in Supabase Auth (always try; if already exists, catch and handle)
-      // Always provide trainer's email (from DB) and the password from user input
+      // Step 3: Sign up user in Supabase Auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: trainerData.email,
         password: password,
@@ -159,7 +165,6 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       });
 
       if (signUpError) {
-        // User might already exist in Supabase Auth
         if (
           signUpError.message?.toLowerCase().includes('already registered') ||
           signUpError.message?.toLowerCase().includes('user already exists')
@@ -177,9 +182,10 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         }
       }
 
-      // Step 4: Mark password as set in trainer_auth (link Supabase Auth user id to trainer_auth entry)
+      // Step 4: Update trainer_auth and trainer records
       if (authData.user) {
-        const { error: updateError } = await supabase
+        // Update trainer_auth record
+        const { error: updateAuthError } = await supabase
           .from('trainer_auth')
           .update({
             auth_user_id: authData.user.id,
@@ -188,19 +194,22 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
             token_expires_at: null
           })
           .eq('id', trainerAuth.id);
-        if (updateError) throw updateError;
+        
+        if (updateAuthError) throw updateAuthError;
+
+        // Update trainer record with user_id
+        const { error: updateTrainerError } = await supabase
+          .from('trainers')
+          .update({ user_id: authData.user.id })
+          .eq('id', trainerData.id);
+        
+        if (updateTrainerError) throw updateTrainerError;
+
         toast({
           title: "Password Set Successfully",
           description: "You can now log in with your new password.",
         });
         onLoginSuccess(trainerData);
-      } else {
-        // Fallback: this should almost never happen if signUp succeeded
-        toast({
-          title: "Unexpected Error",
-          description: "Sign up succeeded but no user was returned. Please try logging in.",
-          variant: "destructive",
-        });
       }
     } catch (error: any) {
       console.error("[TrainerLogin][ERROR] Setup password error:", error);

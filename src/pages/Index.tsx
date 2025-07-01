@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import StudentRegistration from '@/components/StudentRegistration';
 import AdminLogin from '@/components/AdminLogin';
 import AdminDashboard from '@/components/AdminDashboard';
+import StudentsPage from '@/pages/StudentsPage';
 import TrainerPage from '@/pages/TrainerPage';
 import { supabase } from '@/integrations/supabase/client';
 import LogoutButton from "@/components/LogoutButton";
@@ -12,7 +13,7 @@ import LandingProgramFeatures from "@/components/LandingProgramFeatures";
 import LandingFooter from "@/components/LandingFooter";
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'student' | 'admin' | 'trainer'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'student' | 'admin' | 'trainer' | 'students'>('home');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminData, setAdminData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -98,9 +99,18 @@ const Index = () => {
     return <TrainerPage />;
   }
 
+  if (currentView === 'students') {
+    return <StudentsPage onBack={() => setCurrentView('admin')} />;
+  }
+
   if (currentView === 'admin') {
     if (isAdminLoggedIn && adminData) {
-      return <AdminDashboard admin={adminData} />;
+      return (
+        <AdminDashboard 
+          admin={adminData} 
+          onNavigateToStudents={() => setCurrentView('students')}
+        />
+      );
     } else {
       return (
         <AdminLogin 
