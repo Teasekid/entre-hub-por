@@ -11,7 +11,6 @@ const TrainerSignup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -19,64 +18,85 @@ const TrainerSignup = () => {
     e.preventDefault();
     setIsSigningUp(true);
 
-    // 1. Register user in Supabase Auth
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (signUpError) {
-      toast({ title: "Signup failed", description: signUpError.message, variant: "destructive" });
-      setIsSigningUp(false);
-      return;
-    }
+    try {
+      // Check if trainer already exists in trainers table
+      const { data: existingTrainer } = await supabase
+        .from('trainers')
+        .select('email')
+        .eq('email', email)
+        .single();
 
-    const userId = signUpData.user?.id;
-    if (!userId) {
-      toast({ title: "Signup error", description: "Account could not be created." });
-      setIsSigningUp(false);
-      return;
-    }
+      if (existingTrainer) {
+        toast({
+          title: "Email already exists",
+          description: "A trainer with this email already exists. Please use a different email or contact admin.",
+          variant: "destructive",
+        });
+        setIsSigningUp(false);
+        return;
+      }
 
-    // 2. Insert into trainers table
-    const { error: insertTrainerError } = await supabase.from("trainers").insert({
-      user_id: userId,
-      name,
-      email,
-      phone_number: phoneNumber,
-    });
-    if (insertTrainerError) {
-      toast({ title: "Trainer profile creation failed", description: insertTrainerError.message, variant: "destructive" });
-      setIsSigningUp(false);
-      return;
-    }
+      // Check if already pending
+      const { data: pendingTrainer } = await supabase
+        .from('pending_trainers')
+        .select('email')
+        .eq('email', email)
+        .single();
 
-    // 3. Assign "trainer" role
-    const { error: roleError } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: "trainer",
-    });
-    if (roleError) {
-      toast({ title: "Role assignment failed", description: roleError.message, variant: "destructive" });
-      setIsSigningUp(false);
-      return;
-    }
+      if (pendingTrainer) {
+        toast({
+          title: "Application already submitted",
+          description: "Your trainer application is already pending approval. Please wait for admin review.",
+          variant: "destructive",
+        });
+        setIsSigningUp(false);
+        return;
+      }
 
-    setSuccess(true);
-    toast({ title: "Success!", description: "Trainer account created. Please check your email to confirm your account." });
-    setIsSigningUp(false);
+      // Add to pending_trainers table
+      const { error: insertError } = await supabase
+        .from("pending_trainers")
+        .insert({
+          name,
+          email,
+          phone_number: phoneNumber,
+          status: 'pending'
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      setSuccess(true);
+      toast({
+        title: "Application Submitted!",
+        description: "Your trainer application has been submitted for review. An admin will contact you soon.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Signup failed",
+        description: error.message || "Failed to submit application",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSigningUp(false);
+    }
   }
 
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
         <Card className="max-w-lg w-full border-amber-200">
-          <CardHeader><CardTitle className="text-amber-800">Trainer Signup Successful</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-amber-800">Application Submitted</CardTitle>
+          </CardHeader>
           <CardContent>
-            <p className="mb-6 text-amber-700">Registration complete! Check your email and confirm to begin using your trainer account.</p>
-            <Button className="w-full bg-amber-700" onClick={() => (window.location.href = "/")}>Back to Home</Button>
+            <p className="mb-6 text-amber-700">
+              Your trainer application has been submitted successfully! An admin will review your application and contact you with further instructions.
+            </p>
+            <Button className="w-full bg-amber-700" onClick={() => (window.location.href = "/")}>
+              Back to Home
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -86,17 +106,45 @@ const TrainerSignup = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
       <Card className="max-w-lg w-full border-amber-200">
-        <CardHeader><CardTitle className="text-amber-800">Trainer Signup</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-amber-800">Apply to Become a Trainer</CardTitle>
+        </CardHeader>
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">
-            <Input required placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} />
-            <Input required type="email" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} />
-            <Input required placeholder="Phone Number" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
-            <Input required type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
-            <Button className="w-full bg-amber-700" type="submit" disabled={isSigningUp}>
-              {isSigningUp ? "Signing up..." : "Sign Up"}
+            <Input
+              required
+              placeholder="Full Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+            <Input
+              required
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+            <Input
+              required
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={e => setPhoneNumber(e.target.value)}
+            />
+            <Button
+              className="w-full bg-amber-700"
+              type="submit"
+              disabled={isSigningUp}
+            >
+              {isSigningUp ? "Submitting Application..." : "Submit Application"}
             </Button>
-            <Button variant="ghost" className="w-full mt-2" type="button" onClick={() => (window.location.href = "/")}>Back to Home</Button>
+            <Button
+              variant="ghost"
+              className="w-full mt-2"
+              type="button"
+              onClick={() => (window.location.href = "/")}
+            >
+              Back to Home
+            </Button>
           </form>
         </CardContent>
       </Card>

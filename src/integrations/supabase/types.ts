@@ -57,6 +57,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_trainers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone_number: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone_number?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone_number?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       skills: {
         Row: {
           code: string
