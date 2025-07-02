@@ -62,28 +62,35 @@ const TrainerManagement = () => {
   // Add trainer mutation
   const addTrainerMutation = useMutation({
     mutationFn: async () => {
-      // Check if trainer email already exists
-      const { data: existingTrainer } = await supabase
+      const trimmedEmail = newTrainer.email.trim().toLowerCase();
+      console.log("Adding trainer with email:", trimmedEmail);
+      
+      // Check if trainer email already exists (case-insensitive)
+      const { data: existingTrainer, error: checkError } = await supabase
         .from('trainers')
         .select('email')
-        .eq('email', newTrainer.email)
-        .single();
+        .ilike('email', trimmedEmail)
+        .maybeSingle();
+
+      console.log("Existing trainer check:", { existingTrainer, checkError });
 
       if (existingTrainer) {
         throw new Error('A trainer with this email already exists.');
       }
 
-      // Create trainer without user_id (will be set during registration)
+      // Create trainer with normalized email
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .insert({
           name: newTrainer.name,
-          email: newTrainer.email,
+          email: trimmedEmail, // Store email in lowercase
           phone_number: newTrainer.phone_number,
           user_id: null
         })
         .select()
         .single();
+
+      console.log("Trainer creation result:", { trainerData, trainerError });
 
       if (trainerError) throw trainerError;
 

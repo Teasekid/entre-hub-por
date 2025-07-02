@@ -23,7 +23,7 @@ const TrainerSignup = () => {
     const trimmedEmail = email.trim().toLowerCase();
 
     try {
-      console.log("Checking for trainer with email:", trimmedEmail);
+      console.log("Verifying trainer with email:", trimmedEmail);
       
       // Check if trainer exists in trainers table (case-insensitive)
       const { data: trainer, error } = await supabase
@@ -32,7 +32,7 @@ const TrainerSignup = () => {
         .ilike('email', trimmedEmail)
         .maybeSingle();
 
-      console.log("Trainer query result:", { trainer, error });
+      console.log("Trainer verification result:", { trainer, error });
 
       if (error) {
         console.error("Database error:", error);
@@ -48,6 +48,7 @@ const TrainerSignup = () => {
             variant: "destructive",
           });
         } else {
+          console.log("Trainer found, proceeding to password setup");
           setTrainerFound(true);
           setTrainerData(trainer);
           toast({
@@ -56,6 +57,7 @@ const TrainerSignup = () => {
           });
         }
       } else {
+        console.log("No trainer found with email:", trimmedEmail);
         toast({
           title: "Email Not Found",
           description: "Your email is not in our trainer database. Please contact the admin to be added as a trainer.",

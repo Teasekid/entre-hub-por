@@ -16,15 +16,26 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    const trimmedEmail = email.trim().toLowerCase();
+    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log("Attempting login with email:", trimmedEmail);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email: trimmedEmail, 
+        password 
+      });
+      
       if (error) throw error;
       
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .select('*')
-        .ilike('email', email.trim().toLowerCase())
+        .ilike('email', trimmedEmail)
         .single();
+
+      console.log("Trainer lookup result:", { trainerData, trainerError });
       
       if (trainerError || !trainerData) {
         await supabase.auth.signOut();
@@ -97,7 +108,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      console.log("Checking for trainer with email:", trimmedEmail);
+      console.log("Setting up password for trainer with email:", trimmedEmail);
       
       // First, check if trainer exists in trainers table (case-insensitive)
       const { data: trainerData, error: trainerError } = await supabase
@@ -106,7 +117,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         .ilike('email', trimmedEmail)
         .maybeSingle();
 
-      console.log("Trainer query result:", { trainerData, trainerError });
+      console.log("Trainer setup query result:", { trainerData, trainerError });
 
       if (trainerError) {
         throw new Error('Database error occurred while verifying trainer.');
@@ -133,15 +144,17 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         return;
       }
 
-      // Sign up user in Supabase Auth
+      // Sign up user in Supabase Auth using the stored email from database
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: trainerData.email,
+        email: trainerData.email, // Use the email from the database to ensure consistency
         password: password,
         options: { 
           data: { name: trainerData.name },
           emailRedirectTo: `${window.location.origin}/trainer`
         }
       });
+
+      console.log("Auth signup result:", { authData, signUpError });
 
       if (signUpError) {
         if (
