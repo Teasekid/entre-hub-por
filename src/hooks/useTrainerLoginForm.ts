@@ -71,7 +71,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   };
 
-  // Setup password handler - simplified without tokens
+  // Setup password handler - now checks pending_trainers table
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -110,46 +110,54 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       const trimmedEmail = email.trim().toLowerCase();
       console.log("Setting up password for trainer with email:", trimmedEmail);
       
-      // First, check if trainer exists in trainers table (case-insensitive)
-      const { data: trainerData, error: trainerError } = await supabase
-        .from('trainers')
+      // First, check if trainer exists in pending_trainers table (case-insensitive)
+      const { data: pendingTrainerData, error: pendingTrainerError } = await supabase
+        .from('pending_trainers')
         .select('*')
         .ilike('email', trimmedEmail)
+        .eq('status', 'pending')
         .maybeSingle();
 
-      console.log("Trainer setup query result:", { trainerData, trainerError });
+      console.log("Pending trainer setup query result:", { pendingTrainerData, pendingTrainerError });
 
-      if (trainerError) {
+      if (pendingTrainerError) {
         throw new Error('Database error occurred while verifying trainer.');
       }
 
-      if (!trainerData) {
+      if (!pendingTrainerData) {
+        // Check if trainer already exists in trainers table
+        const { data: existingTrainer } = await supabase
+          .from('trainers')
+          .select('*')
+          .ilike('email', trimmedEmail)
+          .maybeSingle();
+
+        if (existingTrainer) {
+          toast({
+            title: "Account Already Exists",
+            description: "This trainer already has an account. Please try logging in instead.",
+            variant: "destructive",
+          });
+          setMode('login');
+          setIsLoading(false);
+          return;
+        }
+
         toast({
           title: "Trainer Not Found",
-          description: "No trainer found with this email. Please contact your administrator.",
-          variant: "destructive",
+          description: "No pending trainer found with this email. Please contact your administrator.",
+          variant: "restrictive",
         });
-        setIsLoading(false);
-        return;
-      }
-
-      if (trainerData.user_id) {
-        toast({
-          title: "Account Already Exists",
-          description: "This trainer already has an account. Please try logging in instead.",
-          variant: "destructive",
-        });
-        setMode('login');
         setIsLoading(false);
         return;
       }
 
       // Sign up user in Supabase Auth using the stored email from database
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: trainerData.email, // Use the email from the database to ensure consistency
+        email: pendingTrainerData.email, // Use the email from the database to ensure consistency
         password: password,
         options: { 
-          data: { name: trainerData.name },
+          data: { name: pendingTrainerData.name },
           emailRedirectTo: `${window.location.origin}/trainer`
         }
       });
@@ -174,20 +182,37 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         }
       }
 
-      // Update trainer record with user_id
+      // Move trainer from pending_trainers to trainers table
       if (authData.user) {
-        const { error: updateTrainerError } = await supabase
+        const { data: newTrainer, error: createTrainerError } = await supabase
           .from('trainers')
-          .update({ user_id: authData.user.id })
-          .eq('id', trainerData.id);
+          .insert({
+            name: pendingTrainerData.name,
+            email: pendingTrainerData.email,
+            phone_number: pendingTrainerData.phone_number,
+            user_id: authData.user.id
+          })
+          .select()
+          .single();
         
-        if (updateTrainerError) throw updateTrainerError;
+        if (createTrainerError) throw createTrainerError;
+
+        // Update pending trainer status to approved
+        const { error: updatePendingError } = await supabase
+          .from('pending_trainers')
+          .update({ status: 'approved' })
+          .eq('id', pendingTrainerData.id);
+
+        if (updatePendingError) {
+          console.error("Failed to update pending trainer status:", updatePendingError);
+          // Don't throw error as the main setup was successful
+        }
 
         toast({
           title: "Account Created Successfully",
           description: "You can now log in with your new password.",
         });
-        onLoginSuccess(trainerData);
+        onLoginSuccess(newTrainer);
       }
     } catch (error: any) {
       console.error("[TrainerLogin][ERROR] Setup password error:", error);

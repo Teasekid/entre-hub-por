@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,39 +24,31 @@ const TrainerSignup = () => {
     try {
       console.log("Verifying trainer with email:", trimmedEmail);
       
-      // Check if trainer exists in trainers table (case-insensitive)
-      const { data: trainer, error } = await supabase
-        .from('trainers')
+      // Check if trainer exists in pending_trainers table (case-insensitive)
+      const { data: pendingTrainer, error } = await supabase
+        .from('pending_trainers')
         .select('*')
         .ilike('email', trimmedEmail)
+        .eq('status', 'pending')
         .maybeSingle();
 
-      console.log("Trainer verification result:", { trainer, error });
+      console.log("Pending trainer verification result:", { pendingTrainer, error });
 
       if (error) {
         console.error("Database error:", error);
         throw error;
       }
 
-      if (trainer) {
-        // Check if trainer already has a user account
-        if (trainer.user_id) {
-          toast({
-            title: "Account Already Exists",
-            description: "You already have an account. Please login instead.",
-            variant: "destructive",
-          });
-        } else {
-          console.log("Trainer found, proceeding to password setup");
-          setTrainerFound(true);
-          setTrainerData(trainer);
-          toast({
-            title: "Email Verified",
-            description: "Please set up your password to complete registration.",
-          });
-        }
+      if (pendingTrainer) {
+        console.log("Pending trainer found, proceeding to password setup");
+        setTrainerFound(true);
+        setTrainerData(pendingTrainer);
+        toast({
+          title: "Email Verified",
+          description: "Please set up your password to complete registration.",
+        });
       } else {
-        console.log("No trainer found with email:", trimmedEmail);
+        console.log("No pending trainer found with email:", trimmedEmail);
         toast({
           title: "Email Not Found",
           description: "Your email is not in our trainer database. Please contact the admin to be added as a trainer.",
@@ -114,15 +105,33 @@ const TrainerSignup = () => {
         throw signUpError;
       }
 
-      // Update trainer record with user_id
+      // Move trainer from pending_trainers to trainers table
       if (authData.user) {
-        const { error: updateError } = await supabase
+        // Create trainer record in trainers table
+        const { data: newTrainer, error: trainerError } = await supabase
           .from('trainers')
-          .update({ user_id: authData.user.id })
+          .insert({
+            name: trainerData.name,
+            email: trainerData.email,
+            phone_number: trainerData.phone_number,
+            user_id: authData.user.id
+          })
+          .select()
+          .single();
+
+        if (trainerError) {
+          throw trainerError;
+        }
+
+        // Update pending trainer status to approved (optional, for record keeping)
+        const { error: updateError } = await supabase
+          .from('pending_trainers')
+          .update({ status: 'approved' })
           .eq('id', trainerData.id);
-        
+
         if (updateError) {
-          throw updateError;
+          console.error("Failed to update pending trainer status:", updateError);
+          // Don't throw error here as the main registration was successful
         }
 
         toast({
