@@ -32,6 +32,7 @@ const LandingActionCards: React.FC<LandingActionCardsProps> = ({
         </Button>
       </CardContent>
     </Card>
+    
     {/* Trainer Portal */}
     <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
       onClick={onTrainer}>
@@ -41,13 +42,14 @@ const LandingActionCards: React.FC<LandingActionCardsProps> = ({
       </CardHeader>
       <CardContent>
         <p className="text-amber-700 text-center mb-4">
-          Access your trainer dashboard and manage students
+          Access your trainer dashboard or register with your email
         </p>
         <Button className="w-full bg-amber-700 hover:bg-amber-800">
-          Trainer Login
+          Trainer Access
         </Button>
       </CardContent>
     </Card>
+    
     {/* Admin Portal */}
     <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
       onClick={onAdmin}>
@@ -64,24 +66,6 @@ const LandingActionCards: React.FC<LandingActionCardsProps> = ({
         </Button>
       </CardContent>
     </Card>
-    {/* Trainer Application */}
-    <div className="max-w-4xl mx-auto mt-8 md:col-span-3">
-      <Card className="border-amber-200 hover:border-amber-300 transition-colors cursor-pointer"
-        onClick={() => window.location.href = "/trainer-signup"}>
-        <CardHeader className="text-center">
-          <Users className="h-12 w-12 text-amber-600 mx-auto mb-4" />
-          <CardTitle className="text-amber-800">Apply to Become a Trainer</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-amber-700 text-center mb-4">
-            Submit your application to become a certified trainer. Applications are reviewed by our admin team.
-          </p>
-          <Button className="w-full bg-amber-700 hover:bg-amber-800">
-            Apply Now
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
   </div>
 );
 

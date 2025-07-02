@@ -8,144 +8,211 @@ import { supabase } from "@/integrations/supabase/client";
 
 const TrainerSignup = () => {
   const { toast } = useToast();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [isSigningUp, setIsSigningUp] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [trainerFound, setTrainerFound] = useState(false);
+  const [trainerData, setTrainerData] = useState<any>(null);
 
-  async function handleSignup(e: React.FormEvent) {
+  async function handleEmailVerification(e: React.FormEvent) {
     e.preventDefault();
-    setIsSigningUp(true);
+    setIsVerifying(true);
 
     try {
-      // Check if trainer already exists in trainers table
-      const { data: existingTrainer } = await supabase
+      // Check if trainer exists in trainers table
+      const { data: trainer, error } = await supabase
         .from('trainers')
-        .select('email')
+        .select('*')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
-      if (existingTrainer) {
+      if (error) {
+        throw error;
+      }
+
+      if (trainer) {
+        // Check if trainer already has a user account
+        if (trainer.user_id) {
+          toast({
+            title: "Account Already Exists",
+            description: "You already have an account. Please login instead.",
+            variant: "destructive",
+          });
+        } else {
+          setTrainerFound(true);
+          setTrainerData(trainer);
+          toast({
+            title: "Email Verified",
+            description: "Please set up your password to complete registration.",
+          });
+        }
+      } else {
         toast({
-          title: "Email already exists",
-          description: "A trainer with this email already exists. Please use a different email or contact admin.",
+          title: "Email Not Found",
+          description: "Your email is not in our trainer database. Please contact the admin to be added as a trainer.",
           variant: "destructive",
         });
-        setIsSigningUp(false);
-        return;
       }
-
-      // Check if already pending
-      const { data: pendingTrainer } = await supabase
-        .from('pending_trainers')
-        .select('email')
-        .eq('email', email)
-        .single();
-
-      if (pendingTrainer) {
-        toast({
-          title: "Application already submitted",
-          description: "Your trainer application is already pending approval. Please wait for admin review.",
-          variant: "destructive",
-        });
-        setIsSigningUp(false);
-        return;
-      }
-
-      // Add to pending_trainers table
-      const { error: insertError } = await supabase
-        .from("pending_trainers")
-        .insert({
-          name,
-          email,
-          phone_number: phoneNumber,
-          status: 'pending'
-        });
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      setSuccess(true);
-      toast({
-        title: "Application Submitted!",
-        description: "Your trainer application has been submitted for review. An admin will contact you soon.",
-      });
     } catch (error: any) {
       toast({
-        title: "Signup failed",
-        description: error.message || "Failed to submit application",
+        title: "Verification failed",
+        description: error.message || "Failed to verify email",
         variant: "destructive",
       });
     } finally {
-      setIsSigningUp(false);
+      setIsVerifying(false);
     }
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
-        <Card className="max-w-lg w-full border-amber-200">
-          <CardHeader>
-            <CardTitle className="text-amber-800">Application Submitted</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-6 text-amber-700">
-              Your trainer application has been submitted successfully! An admin will review your application and contact you with further instructions.
-            </p>
-            <Button className="w-full bg-amber-700" onClick={() => (window.location.href = "/")}>
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  async function handleRegistration(e: React.FormEvent) {
+    e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRegistering(true);
+
+    try {
+      // Sign up user in Supabase Auth
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: { 
+          data: { name: trainerData.name },
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      // Update trainer record with user_id
+      if (authData.user) {
+        const { error: updateError } = await supabase
+          .from('trainers')
+          .update({ user_id: authData.user.id })
+          .eq('id', trainerData.id);
+        
+        if (updateError) {
+          throw updateError;
+        }
+
+        toast({
+          title: "Registration Successful",
+          description: "Your account has been created successfully. Please check your email for verification.",
+        });
+
+        // Redirect to home after successful registration
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Registration failed",
+        description: error.message || "Failed to create account",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRegistering(false);
+    }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
       <Card className="max-w-lg w-full border-amber-200">
         <CardHeader>
-          <CardTitle className="text-amber-800">Apply to Become a Trainer</CardTitle>
+          <CardTitle className="text-amber-800">
+            {trainerFound ? "Set Up Your Password" : "Trainer Registration"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignup} className="space-y-4">
-            <Input
-              required
-              placeholder="Full Name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
-            <Input
-              required
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-            <Input
-              required
-              placeholder="Phone Number"
-              value={phoneNumber}
-              onChange={e => setPhoneNumber(e.target.value)}
-            />
-            <Button
-              className="w-full bg-amber-700"
-              type="submit"
-              disabled={isSigningUp}
-            >
-              {isSigningUp ? "Submitting Application..." : "Submit Application"}
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full mt-2"
-              type="button"
-              onClick={() => (window.location.href = "/")}
-            >
-              Back to Home
-            </Button>
-          </form>
+          {!trainerFound ? (
+            <form onSubmit={handleEmailVerification} className="space-y-4">
+              <Input
+                required
+                type="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+              <Button
+                className="w-full bg-amber-700"
+                type="submit"
+                disabled={isVerifying}
+              >
+                {isVerifying ? "Verifying..." : "Verify Email"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full mt-2"
+                type="button"
+                onClick={() => (window.location.href = "/")}
+              >
+                Back to Home
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegistration} className="space-y-4">
+              <div className="text-center mb-4">
+                <p className="text-amber-700">Welcome, {trainerData.name}!</p>
+                <p className="text-sm text-gray-600">Please create your password to complete registration.</p>
+              </div>
+              <Input
+                required
+                type="password"
+                placeholder="Create Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <Input
+                required
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+              />
+              <Button
+                className="w-full bg-amber-700"
+                type="submit"
+                disabled={isRegistering}
+              >
+                {isRegistering ? "Creating Account..." : "Create Account"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full mt-2"
+                type="button"
+                onClick={() => {
+                  setTrainerFound(false);
+                  setTrainerData(null);
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                }}
+              >
+                Back to Email Verification
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

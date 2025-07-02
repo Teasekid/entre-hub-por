@@ -7,7 +7,6 @@ import TrainerManagement from "./TrainerManagement";
 import SkillManagement from "./SkillManagement";
 import ReportsAndAnalytics from "./ReportsAndAnalytics";
 import AdminRoleManagement from "./AdminRoleManagement";
-import PendingTrainerManagement from "./PendingTrainerManagement";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -68,8 +67,6 @@ const AdminDashboard = ({ admin, onNavigateToStudents }: { admin: any; onNavigat
           </Card>
         </div>
 
-        <PendingTrainerManagement />
-        <div className="my-8" />
         <TrainerManagement />
         <div className="my-8" />
         <SkillManagement />
