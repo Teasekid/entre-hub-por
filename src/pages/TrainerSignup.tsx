@@ -20,15 +20,22 @@ const TrainerSignup = () => {
     e.preventDefault();
     setIsVerifying(true);
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     try {
-      // Check if trainer exists in trainers table
+      console.log("Checking for trainer with email:", trimmedEmail);
+      
+      // Check if trainer exists in trainers table (case-insensitive)
       const { data: trainer, error } = await supabase
         .from('trainers')
         .select('*')
-        .eq('email', email)
+        .ilike('email', trimmedEmail)
         .maybeSingle();
 
+      console.log("Trainer query result:", { trainer, error });
+
       if (error) {
+        console.error("Database error:", error);
         throw error;
       }
 
@@ -56,6 +63,7 @@ const TrainerSignup = () => {
         });
       }
     } catch (error: any) {
+      console.error("Email verification error:", error);
       toast({
         title: "Verification failed",
         description: error.message || "Failed to verify email",
@@ -92,7 +100,7 @@ const TrainerSignup = () => {
     try {
       // Sign up user in Supabase Auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: email,
+        email: trainerData.email,
         password: password,
         options: { 
           data: { name: trainerData.name },
@@ -126,6 +134,7 @@ const TrainerSignup = () => {
         }, 2000);
       }
     } catch (error: any) {
+      console.error("Registration error:", error);
       toast({
         title: "Registration failed",
         description: error.message || "Failed to create account",

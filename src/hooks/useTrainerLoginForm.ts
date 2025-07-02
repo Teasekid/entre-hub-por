@@ -23,7 +23,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .select('*')
-        .eq('email', email)
+        .ilike('email', email.trim().toLowerCase())
         .single();
       
       if (trainerError || !trainerData) {
@@ -49,6 +49,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       });
       onLoginSuccess(trainerData);
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
         description: error.message || "Invalid credentials",
@@ -95,12 +96,17 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
 
     try {
-      // First, check if trainer exists in trainers table
+      const trimmedEmail = email.trim().toLowerCase();
+      console.log("Checking for trainer with email:", trimmedEmail);
+      
+      // First, check if trainer exists in trainers table (case-insensitive)
       const { data: trainerData, error: trainerError } = await supabase
         .from('trainers')
         .select('*')
-        .eq('email', email)
+        .ilike('email', trimmedEmail)
         .maybeSingle();
+
+      console.log("Trainer query result:", { trainerData, trainerError });
 
       if (trainerError) {
         throw new Error('Database error occurred while verifying trainer.');
@@ -129,7 +135,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
 
       // Sign up user in Supabase Auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: email,
+        email: trainerData.email,
         password: password,
         options: { 
           data: { name: trainerData.name },
