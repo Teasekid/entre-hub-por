@@ -1,5 +1,5 @@
 
-// Main orchestrator for the TrainerLogin flow, now with delegated hooks and forms!
+// Main orchestrator for the TrainerLogin flow, now simplified without tokens!
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
@@ -24,8 +24,6 @@ function TrainerLogin({ onBack, onLoginSuccess }: TrainerLoginProps) {
     setPassword,
     confirmPassword,
     setConfirmPassword,
-    setupToken,
-    setSetupToken,
     isLoading,
     handleLogin,
     handleSetupPassword,
@@ -52,14 +50,14 @@ function TrainerLogin({ onBack, onLoginSuccess }: TrainerLoginProps) {
               />
             </div>
             <CardTitle className="text-2xl text-amber-800 text-center">
-              {mode === 'setup' ? 'Set Up Password' : 'Trainer Login'}
+              {mode === 'setup' ? 'Create Your Account' : 'Trainer Login'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {mode === 'setup' ? (
               <TrainerSetupForm
-                setupToken={setupToken}
-                setSetupToken={setSetupToken}
+                email={email}
+                setEmail={setEmail}
                 password={password}
                 setPassword={setPassword}
                 confirmPassword={confirmPassword}

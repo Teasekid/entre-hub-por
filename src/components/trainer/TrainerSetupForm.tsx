@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface TrainerSetupFormProps {
-  setupToken: string;
-  setSetupToken: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
   password: string;
   setPassword: (v: string) => void;
   confirmPassword: string;
@@ -16,8 +16,8 @@ interface TrainerSetupFormProps {
 }
 
 export function TrainerSetupForm({
-  setupToken,
-  setSetupToken,
+  email,
+  setEmail,
   password,
   setPassword,
   confirmPassword,
@@ -29,15 +29,15 @@ export function TrainerSetupForm({
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="setup-token">Setup Token</Label>
+        <Label htmlFor="email">Email Address</Label>
         <Input
-          id="setup-token"
-          type="text"
-          value={setupToken}
-          onChange={e => setSetupToken(e.target.value.trim())}
+          id="email"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
           required
           className="border-amber-200 focus:border-amber-500"
-          placeholder="Paste your setup token here"
+          placeholder="Enter your email address"
         />
       </div>
       <div>
@@ -67,7 +67,7 @@ export function TrainerSetupForm({
         className="w-full bg-amber-700 hover:bg-amber-800"
         disabled={isLoading}
       >
-        {isLoading ? 'Setting Up...' : 'Set Password'}
+        {isLoading ? 'Setting Up...' : 'Create Account'}
       </Button>
       <Button 
         type="button" 

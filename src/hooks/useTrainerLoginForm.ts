@@ -1,48 +1,18 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
-import { extractSetupToken } from "@/utils/extractSetupToken";
 
-// Encapsulates all state and handlers for the TrainerLogin/Setup flow
+// Simplified trainer login/setup flow without tokens
 export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
   const [mode, setMode] = useState<'login' | 'setup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [setupToken, setSetupToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Ensure setup token is updated from the URL on mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromURL = urlParams.get('token');
-    if (tokenFromURL) {
-      const token = extractSetupToken(tokenFromURL);
-      setSetupToken(token);
-      setMode('setup');
-      console.log(`[TrainerLogin] Token from URL param (mount):`, token);
-    }
-  }, []);
-
-  // When switching mode, autofill/reset appropriate fields
-  useEffect(() => {
-    if (mode === 'setup') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromURL = urlParams.get('token');
-      if (tokenFromURL) {
-        const token = extractSetupToken(tokenFromURL);
-        setSetupToken(token);
-        console.log(`[TrainerLogin] Token from URL param (mode switch):`, token);
-      }
-    } else {
-      setSetupToken('');
-      setPassword('');
-      setConfirmPassword('');
-    }
-  }, [mode]);
-
-  // Login handler - ENHANCED to update trainer user_id
+  // Login handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -89,22 +59,21 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   };
 
-  // Setup password handler - ENHANCED to link user_id properly
+  // Setup password handler - simplified without tokens
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const cleanedToken = extractSetupToken(setupToken?.trim());
-    console.log("[TrainerLogin] Cleaned setup token on submit:", cleanedToken);
 
-    if (!cleanedToken || cleanedToken.length !== 64) {
+    if (!email) {
       toast({
-        title: "Setup Token Required",
-        description: "Please enter or paste a valid setup token (from your email link).",
+        title: "Email Required",
+        description: "Please enter your email address.",
         variant: "destructive",
       });
       setIsLoading(false);
       return;
     }
+
     if (password !== confirmPassword) {
       toast({
         title: "Password Mismatch",
@@ -114,6 +83,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       setIsLoading(false);
       return;
     }
+
     if (password.length < 6) {
       toast({
         title: "Password Too Short",
@@ -123,45 +93,48 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       setIsLoading(false);
       return;
     }
+
     try {
-      // Step 1: Check for token existence in trainer_auth table
-      const { data: trainerAuth, error: authError } = await supabase
-        .from('trainer_auth')
-        .select('*, trainers (*)')
-        .eq('setup_token', cleanedToken)
-        .gt('token_expires_at', new Date().toISOString())
+      // First, check if trainer exists in trainers table
+      const { data: trainerData, error: trainerError } = await supabase
+        .from('trainers')
+        .select('*')
+        .eq('email', email)
         .maybeSingle();
 
-      if (authError) {
-        throw new Error('Database error occurred while verifying setup token.');
-      }
-      if (!trainerAuth) {
-        toast({
-          title: "Invalid or Expired Token",
-          description: "This setup token is invalid or has expired. Please request a new one from admin.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
+      if (trainerError) {
+        throw new Error('Database error occurred while verifying trainer.');
       }
 
-      // Step 2: Get linked trainer
-      const trainerData = trainerAuth.trainers;
       if (!trainerData) {
         toast({
-          title: "Trainer not found",
-          description: "No trainer found for this setup token. Please contact your administrator.",
+          title: "Trainer Not Found",
+          description: "No trainer found with this email. Please contact your administrator.",
           variant: "destructive",
         });
         setIsLoading(false);
         return;
       }
 
-      // Step 3: Sign up user in Supabase Auth
+      if (trainerData.user_id) {
+        toast({
+          title: "Account Already Exists",
+          description: "This trainer already has an account. Please try logging in instead.",
+          variant: "destructive",
+        });
+        setMode('login');
+        setIsLoading(false);
+        return;
+      }
+
+      // Sign up user in Supabase Auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: trainerData.email,
+        email: email,
         password: password,
-        options: { data: { name: trainerData.name } }
+        options: { 
+          data: { name: trainerData.name },
+          emailRedirectTo: `${window.location.origin}/trainer`
+        }
       });
 
       if (signUpError) {
@@ -182,22 +155,8 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         }
       }
 
-      // Step 4: Update trainer_auth and trainer records
+      // Update trainer record with user_id
       if (authData.user) {
-        // Update trainer_auth record
-        const { error: updateAuthError } = await supabase
-          .from('trainer_auth')
-          .update({
-            auth_user_id: authData.user.id,
-            password_set: true,
-            setup_token: null,
-            token_expires_at: null
-          })
-          .eq('id', trainerAuth.id);
-        
-        if (updateAuthError) throw updateAuthError;
-
-        // Update trainer record with user_id
         const { error: updateTrainerError } = await supabase
           .from('trainers')
           .update({ user_id: authData.user.id })
@@ -206,7 +165,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         if (updateTrainerError) throw updateTrainerError;
 
         toast({
-          title: "Password Set Successfully",
+          title: "Account Created Successfully",
           description: "You can now log in with your new password.",
         });
         onLoginSuccess(trainerData);
@@ -232,8 +191,6 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     setPassword,
     confirmPassword,
     setConfirmPassword,
-    setupToken,
-    setSetupToken,
     isLoading,
     handleLogin,
     handleSetupPassword,
