@@ -146,7 +146,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
         toast({
           title: "Trainer Not Found",
           description: "No pending trainer found with this email. Please contact your administrator.",
-          variant: "restrictive",
+          variant: "destructive",
         });
         setIsLoading(false);
         return;
