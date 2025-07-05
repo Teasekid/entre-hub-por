@@ -71,7 +71,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
     }
   };
 
-  // Setup password handler - now checks pending_trainers table
+  // Setup password handler - improved debugging and lookup
   const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -110,22 +110,47 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       const trimmedEmail = email.trim().toLowerCase();
       console.log("Setting up password for trainer with email:", trimmedEmail);
       
-      // First, check if trainer exists in pending_trainers table (exact match and case-insensitive)
-      console.log("Querying pending_trainers table for:", trimmedEmail);
+      // First, let's get all pending trainers for debugging
+      console.log("Fetching ALL pending trainers for debugging...");
+      const { data: allPending, error: debugError } = await supabase
+        .from('pending_trainers')
+        .select('*');
+
+      console.log("All pending trainers in database:", allPending);
+      console.log("Debug query error (if any):", debugError);
       
+      // Now let's try to find the specific trainer
       const { data: pendingTrainerData, error: pendingTrainerError } = await supabase
         .from('pending_trainers')
         .select('*')
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .ilike('email', `%${trimmedEmail}%`);
 
-      console.log("All pending trainers:", pendingTrainerData);
+      console.log("Pending trainer search result:", pendingTrainerData);
+      console.log("Pending trainer search error:", pendingTrainerError);
       
-      // Find matching trainer manually to debug the issue
-      const matchingTrainer = pendingTrainerData?.find(trainer => 
-        trainer.email.toLowerCase().trim() === trimmedEmail
-      );
+      // Also try exact match
+      const { data: exactMatch, error: exactError } = await supabase
+        .from('pending_trainers')
+        .select('*')
+        .eq('status', 'pending')
+        .eq('email', trimmedEmail);
+
+      console.log("Exact match result:", exactMatch);
       
-      console.log("Matching trainer found:", matchingTrainer);
+      // Find matching trainer manually
+      let matchingTrainer = null;
+      if (pendingTrainerData && pendingTrainerData.length > 0) {
+        matchingTrainer = pendingTrainerData.find(trainer => 
+          trainer.email.toLowerCase().trim() === trimmedEmail
+        );
+      }
+      
+      if (!matchingTrainer && exactMatch && exactMatch.length > 0) {
+        matchingTrainer = exactMatch[0];
+      }
+      
+      console.log("Final matching trainer:", matchingTrainer);
 
       if (pendingTrainerError) {
         console.error("Pending trainer query error:", pendingTrainerError);
@@ -133,7 +158,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       }
 
       if (!matchingTrainer) {
-        console.log("No matching pending trainer found");
+        console.log("No matching pending trainer found for email:", trimmedEmail);
         
         // Check if trainer already exists in trainers table
         const { data: existingTrainer } = await supabase
@@ -157,7 +182,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
 
         toast({
           title: "Trainer Not Found",
-          description: "No pending trainer found with this email. Please contact your administrator.",
+          description: `No pending trainer found with email "${email}". Please contact your administrator to be added as a pending trainer first.`,
           variant: "destructive",
         });
         setIsLoading(false);
@@ -168,7 +193,7 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       console.log("Creating auth user for:", matchingTrainer.email);
       
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: matchingTrainer.email, // Use the email from the database to ensure consistency
+        email: matchingTrainer.email,
         password: password,
         options: { 
           data: { name: matchingTrainer.name },

@@ -79,33 +79,59 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
           throw new Error('Access denied. Admin privileges required.');
         }
 
-        // User has admin role but no admin record, try to create one
+        // User has admin role but no admin record, create one using a direct database insert
         console.log('User has admin role, attempting to create admin record...');
         
-        // Use the service role to create the admin record directly
-        const { data: newAdminData, error: createError } = await supabase
-          .from('admins')
-          .insert({
-            user_id: data.user.id,
-            name: data.user.email?.split('@')[0] || 'Admin User',
-            email: data.user.email || email
-          })
-          .select()
-          .maybeSingle();
+        // Use a more direct approach to create the admin record
+        const { data: newAdminData, error: createError } = await supabase.rpc('create_admin_record', {
+          p_user_id: data.user.id,
+          p_name: data.user.email?.split('@')[0] || 'Admin User',
+          p_email: data.user.email || email
+        });
 
         console.log('Admin creation result:', { newAdminData, createError });
 
         if (createError) {
           console.error('Failed to create admin record:', createError);
-          await supabase.auth.signOut();
-          throw new Error(`Failed to create admin record: ${createError.message}`);
+          
+          // If RPC doesn't exist, try direct insert with service role approach
+          console.log('Trying alternative admin creation method...');
+          
+          // Let's try a different approach - check if we can insert directly
+          const { data: directInsert, error: directError } = await supabase
+            .from('admins')
+            .insert({
+              user_id: data.user.id,
+              name: data.user.email?.split('@')[0] || 'Admin User',
+              email: data.user.email || email
+            })
+            .select()
+            .maybeSingle();
+
+          if (directError) {
+            console.error('Direct insert also failed:', directError);
+            
+            // If both methods fail, the user might need to be added manually
+            await supabase.auth.signOut();
+            throw new Error(`Unable to create admin record. Please contact system administrator. Error: ${directError.message}`);
+          }
+
+          if (directInsert) {
+            console.log('Direct insert succeeded:', directInsert);
+            toast({
+              title: "Login Successful",
+              description: `Welcome, ${directInsert.name}!`,
+            });
+            onLoginSuccess();
+            return;
+          }
         }
 
         if (newAdminData) {
-          console.log('Admin record created successfully:', newAdminData);
+          console.log('Admin record created successfully via RPC:', newAdminData);
           toast({
             title: "Login Successful",
-            description: `Welcome, ${newAdminData.name}!`,
+            description: `Welcome, Admin!`,
           });
           onLoginSuccess();
           return;
