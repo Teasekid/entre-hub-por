@@ -45,62 +45,71 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
         .from('admins')
         .select('*')
         .eq('user_id', data.user.id)
-        .single();
+        .maybeSingle();
 
       console.log('Admin query result:', { adminData, adminError });
 
-      if (adminError) {
+      if (adminError && adminError.code !== 'PGRST116') {
         console.error('Admin query error:', adminError);
-        
-        // If no admin record found, let's check if we can create one
-        if (adminError.code === 'PGRST116') {
-          console.log('No admin record found, checking user_roles...');
-          
-          // Check if user has admin role in user_roles table
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('*')
-            .eq('user_id', data.user.id)
-            .eq('role', 'admin')
-            .single();
-
-          console.log('Role query result:', { roleData, roleError });
-
-          if (roleData) {
-            console.log('User has admin role, creating admin record...');
-            // User has admin role but no admin record, create one
-            const { data: newAdminData, error: createError } = await supabase
-              .from('admins')
-              .insert({
-                user_id: data.user.id,
-                name: data.user.email?.split('@')[0] || 'Admin User',
-                email: data.user.email || email
-              })
-              .select()
-              .single();
-
-            if (createError) {
-              console.error('Failed to create admin record:', createError);
-              throw new Error('Failed to create admin record');
-            }
-
-            console.log('Admin record created:', newAdminData);
-            toast({
-              title: "Login Successful",
-              description: `Welcome, ${newAdminData.name}!`,
-            });
-            onLoginSuccess();
-            return;
-          }
-        }
-        
         await supabase.auth.signOut();
-        throw new Error('Access denied. Admin privileges required.');
+        throw new Error('Database error while checking admin privileges.');
       }
 
       if (!adminData) {
-        await supabase.auth.signOut();
-        throw new Error('Access denied. Admin privileges required.');
+        console.log('No admin record found, checking user_roles...');
+        
+        // Check if user has admin role in user_roles table
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        console.log('Role query result:', { roleData, roleError });
+
+        if (roleError && roleError.code !== 'PGRST116') {
+          console.error('Role query error:', roleError);
+          await supabase.auth.signOut();
+          throw new Error('Database error while checking user roles.');
+        }
+
+        if (!roleData) {
+          await supabase.auth.signOut();
+          throw new Error('Access denied. Admin privileges required.');
+        }
+
+        // User has admin role but no admin record, try to create one
+        console.log('User has admin role, attempting to create admin record...');
+        
+        // Use the service role to create the admin record directly
+        const { data: newAdminData, error: createError } = await supabase
+          .from('admins')
+          .insert({
+            user_id: data.user.id,
+            name: data.user.email?.split('@')[0] || 'Admin User',
+            email: data.user.email || email
+          })
+          .select()
+          .maybeSingle();
+
+        console.log('Admin creation result:', { newAdminData, createError });
+
+        if (createError) {
+          console.error('Failed to create admin record:', createError);
+          await supabase.auth.signOut();
+          throw new Error(`Failed to create admin record: ${createError.message}`);
+        }
+
+        if (newAdminData) {
+          console.log('Admin record created successfully:', newAdminData);
+          toast({
+            title: "Login Successful",
+            description: `Welcome, ${newAdminData.name}!`,
+          });
+          onLoginSuccess();
+          return;
+        }
       }
 
       console.log('Admin login successful:', adminData);

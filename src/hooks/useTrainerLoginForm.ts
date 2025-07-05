@@ -110,27 +110,39 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       const trimmedEmail = email.trim().toLowerCase();
       console.log("Setting up password for trainer with email:", trimmedEmail);
       
-      // First, check if trainer exists in pending_trainers table (case-insensitive)
+      // First, check if trainer exists in pending_trainers table (exact match and case-insensitive)
+      console.log("Querying pending_trainers table for:", trimmedEmail);
+      
       const { data: pendingTrainerData, error: pendingTrainerError } = await supabase
         .from('pending_trainers')
         .select('*')
-        .ilike('email', trimmedEmail)
-        .eq('status', 'pending')
-        .maybeSingle();
+        .eq('status', 'pending');
 
-      console.log("Pending trainer setup query result:", { pendingTrainerData, pendingTrainerError });
+      console.log("All pending trainers:", pendingTrainerData);
+      
+      // Find matching trainer manually to debug the issue
+      const matchingTrainer = pendingTrainerData?.find(trainer => 
+        trainer.email.toLowerCase().trim() === trimmedEmail
+      );
+      
+      console.log("Matching trainer found:", matchingTrainer);
 
       if (pendingTrainerError) {
+        console.error("Pending trainer query error:", pendingTrainerError);
         throw new Error('Database error occurred while verifying trainer.');
       }
 
-      if (!pendingTrainerData) {
+      if (!matchingTrainer) {
+        console.log("No matching pending trainer found");
+        
         // Check if trainer already exists in trainers table
         const { data: existingTrainer } = await supabase
           .from('trainers')
           .select('*')
           .ilike('email', trimmedEmail)
           .maybeSingle();
+
+        console.log("Existing trainer check:", existingTrainer);
 
         if (existingTrainer) {
           toast({
@@ -153,11 +165,13 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
       }
 
       // Sign up user in Supabase Auth using the stored email from database
+      console.log("Creating auth user for:", matchingTrainer.email);
+      
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: pendingTrainerData.email, // Use the email from the database to ensure consistency
+        email: matchingTrainer.email, // Use the email from the database to ensure consistency
         password: password,
         options: { 
-          data: { name: pendingTrainerData.name },
+          data: { name: matchingTrainer.name },
           emailRedirectTo: `${window.location.origin}/trainer`
         }
       });
@@ -184,24 +198,31 @@ export function useTrainerLoginForm(onLoginSuccess: (trainer: any) => void) {
 
       // Move trainer from pending_trainers to trainers table
       if (authData.user) {
+        console.log("Creating trainer record for user:", authData.user.id);
+        
         const { data: newTrainer, error: createTrainerError } = await supabase
           .from('trainers')
           .insert({
-            name: pendingTrainerData.name,
-            email: pendingTrainerData.email,
-            phone_number: pendingTrainerData.phone_number,
+            name: matchingTrainer.name,
+            email: matchingTrainer.email,
+            phone_number: matchingTrainer.phone_number,
             user_id: authData.user.id
           })
           .select()
           .single();
         
-        if (createTrainerError) throw createTrainerError;
+        console.log("Trainer creation result:", { newTrainer, createTrainerError });
+        
+        if (createTrainerError) {
+          console.error("Trainer creation failed:", createTrainerError);
+          throw createTrainerError;
+        }
 
         // Update pending trainer status to approved
         const { error: updatePendingError } = await supabase
           .from('pending_trainers')
           .update({ status: 'approved' })
-          .eq('id', pendingTrainerData.id);
+          .eq('id', matchingTrainer.id);
 
         if (updatePendingError) {
           console.error("Failed to update pending trainer status:", updatePendingError);
