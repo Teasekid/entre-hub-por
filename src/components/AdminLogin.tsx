@@ -24,25 +24,86 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
     setIsLoading(true);
 
     try {
+      console.log('Starting admin login process...');
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Auth error:', error);
+        throw error;
+      }
+
+      console.log('Auth successful, user ID:', data.user.id);
+      console.log('User email:', data.user.email);
 
       // Check if user is an admin
+      console.log('Checking admin privileges...');
       const { data: adminData, error: adminError } = await supabase
         .from('admins')
         .select('*')
         .eq('user_id', data.user.id)
         .single();
 
-      if (adminError || !adminData) {
+      console.log('Admin query result:', { adminData, adminError });
+
+      if (adminError) {
+        console.error('Admin query error:', adminError);
+        
+        // If no admin record found, let's check if we can create one
+        if (adminError.code === 'PGRST116') {
+          console.log('No admin record found, checking user_roles...');
+          
+          // Check if user has admin role in user_roles table
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .eq('role', 'admin')
+            .single();
+
+          console.log('Role query result:', { roleData, roleError });
+
+          if (roleData) {
+            console.log('User has admin role, creating admin record...');
+            // User has admin role but no admin record, create one
+            const { data: newAdminData, error: createError } = await supabase
+              .from('admins')
+              .insert({
+                user_id: data.user.id,
+                name: data.user.email?.split('@')[0] || 'Admin User',
+                email: data.user.email || email
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Failed to create admin record:', createError);
+              throw new Error('Failed to create admin record');
+            }
+
+            console.log('Admin record created:', newAdminData);
+            toast({
+              title: "Login Successful",
+              description: `Welcome, ${newAdminData.name}!`,
+            });
+            onLoginSuccess();
+            return;
+          }
+        }
+        
         await supabase.auth.signOut();
         throw new Error('Access denied. Admin privileges required.');
       }
 
+      if (!adminData) {
+        await supabase.auth.signOut();
+        throw new Error('Access denied. Admin privileges required.');
+      }
+
+      console.log('Admin login successful:', adminData);
       toast({
         title: "Login Successful",
         description: `Welcome back, ${adminData.name}!`,
@@ -50,6 +111,7 @@ const AdminLogin = ({ onBack, onLoginSuccess }: AdminLoginProps) => {
       
       onLoginSuccess();
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Login Failed",
         description: error.message || "Invalid credentials",
